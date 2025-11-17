@@ -1,0 +1,23 @@
+[project]
+name = "llama-bench-tuner"
+version = "0.1.0"
+description = "Grid tuner for llama.cpp (llama-bench) with simple visualization"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib>=3.8",   # plotting
+    "pandas>=2.2",       # data wrangling
+    "rich>=13.7",        # pretty logs
+    "optuna>=3.6",       # hyperparameter search
+    "seaborn>=0.13",     # nicer statistical plots
+]
+
+[project.scripts]
+llama-tune = "llama_bench_tuner.tune:main"
+llama-tune-viz = "llama_bench_tuner.viz:main"
+llama-tune-optuna = "llama_bench_tuner.optuna_tune:main"
+llama-tune-viz-opt = "llama_bench_tuner.viz_optuna:main"
+
+[build-system]
+requires = ["uv_build>=0.9.2,<0.10.0"]
+build-backend = "uv_build"
