@@ -9,6 +9,6 @@ outfile/*
 archive/*
 tmp/*
 outfile/*.stderr.txt
-infile/*.local.json
+infile/*.local.*
 
 # plots/bench CSVs are artifacts you may want to keep, so don't ignore *.csv or *.png by default
