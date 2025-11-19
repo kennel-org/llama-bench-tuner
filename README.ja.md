@@ -169,7 +169,6 @@ python -m llama_bench_tuner.viz_optuna \
 #### 可視化サンプル
 
 - Grid 実行 (`2025-11-17_grid`): `reports/grid_sample/`
-  - ![grid_decode_vs_ngl](reports/grid_sample/decode_vs_ngl.png)
   - ![grid_heatmap_fa0](reports/grid_sample/decode_heatmap_fa0.png)
   - ![grid_heatmap_fa1](reports/grid_sample/decode_heatmap_fa1.png)
 - Optuna 実行 (`2025-11-19_optuna_seed42`): `reports/optuna_sample/`

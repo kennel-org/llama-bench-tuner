@@ -158,7 +158,6 @@ Resume tuning by reusing the same `--storage` and optionally `--study-name`.
 #### Visualization sample outputs
 
 - Grid run (`2025-11-17_grid`): see `reports/grid_sample/`
-  - ![decode_vs_ngl](reports/grid_sample/decode_vs_ngl.png)
   - ![decode_heatmap_fa0](reports/grid_sample/decode_heatmap_fa0.png)
   - ![decode_heatmap_fa1](reports/grid_sample/decode_heatmap_fa1.png)
 - Optuna run (`2025-11-19_optuna_seed42`): see `reports/optuna_sample/`
