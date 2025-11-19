@@ -111,6 +111,13 @@ llama-tune \
 
 CLI は decode tok/s（同率の場合は prefill tok/s）で最良構成を表示します。
 
+#### サンプル: 2025-11-17_grid
+
+- サマリ: `outfile/grid/20251117_224903/summary_20251117_224903.csv`
+- 可視化: `outfile/grid/20251117_224903/viz/`
+- ベスト構成: `ngl=14`, `batch=12`, `flash-attn=1`, decode **10.4 tok/s**, prefill 28.5 tok/s
+- 既定コンボ（`ngl=16`, `batch=8`, `fa=0`）もサマリ内に含めてベースライン比較が可能
+
 ### 2. Optuna チューニング（`llama-tune-optuna`）
 
 ```bash
@@ -121,7 +128,9 @@ llama-tune-optuna \
   --batch-min 8 --batch-max 16 \
   --flash-attn 0 1 \
   --n-trials 30 \
-  --storage sqlite:///outfile/optuna_study.db
+  --storage sqlite:///outfile/optuna_study.db \
+  --study-name my_run \
+  --seed 42
 ```
 
 主な生成物:
@@ -130,6 +139,13 @@ llama-tune-optuna \
 - `outfile/optuna_trials.csv` – ユーザー属性（prefill tok/s やログパスなど）付きの全試行履歴
 
 `--storage` と必要に応じて `--study-name` を再利用すれば途中から再開できます。
+
+#### サンプル: 2025-11-19_optuna_seed42
+
+- Storage: `sqlite:///outfile/optuna_study_seed42.db` / Study: `gptoss120b_seed42`
+- 出力: `outfile/optuna/20251119_070656_gptoss120b_seed42/`
+- ベスト構成: `ngl=16`, `batch=12`, `flash-attn=0`, decode **10.03 tok/s**
+- `viz_optuna` は seeded default コンボを 1 点のみ緑でハイライトし、初期値が二重表示されません
 
 ### 3. 可視化（`llama-tune-viz` & `viz_optuna`）
 
@@ -149,6 +165,16 @@ python -m llama_bench_tuner.viz_optuna \
 ```
 
 どちらのコマンドも、ランク表や PNG プロット（decode vs `ngl`、試行推移、`ngl`×`batch` 散布図など）を指定ディレクトリに書き出します。
+
+#### 可視化サンプル
+
+- Grid 実行 (`2025-11-17_grid`): `reports/grid_sample/`
+  - ![grid_decode_vs_ngl](reports/grid_sample/decode_vs_ngl.png)
+  - ![grid_heatmap_fa0](reports/grid_sample/decode_heatmap_fa0.png)
+  - ![grid_heatmap_fa1](reports/grid_sample/decode_heatmap_fa1.png)
+- Optuna 実行 (`2025-11-19_optuna_seed42`): `reports/optuna_sample/`
+  - ![optuna_decode_vs_trial](reports/optuna_sample/optuna_decode_vs_trial.png)
+  - ![optuna_decode_scatter](reports/optuna_sample/optuna_decode_scatter_ngl_batch_fa.png)
 
 ---
 

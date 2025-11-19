@@ -126,6 +126,13 @@ Outputs:
 
 The CLI prints the best-performing configuration by decode tok/s (fallback to prefill tok/s for tie-breaking).
 
+#### Sample run (2025-11-17_grid)
+
+- Summary: `outfile/grid/20251117_224903/summary_20251117_224903.csv`
+- Visuals: `outfile/grid/20251117_224903/viz/`
+- Best config: `ngl=14`, `batch=12`, `flash-attn=1`, decode **10.4 tok/s**, prefill 28.5 tok/s
+- Baseline (`ngl=16`, `batch=8`, `fa=0`) is included in the summary for quick regressions checks
+
 ### 2. Optuna tuning (`llama-tune-optuna`)
 
 ```bash
@@ -136,7 +143,9 @@ llama-tune-optuna \
   --batch-min 8 --batch-max 16 \
   --flash-attn 0 1 \
   --n-trials 30 \
-  --storage sqlite:///outfile/optuna_study.db
+  --storage sqlite:///outfile/optuna_study.db \
+  --study-name my_run \
+  --seed 42
 ```
 
 Key artifacts:
@@ -145,6 +154,17 @@ Key artifacts:
 - `outfile/optuna_trials.csv` – full trial history, including user attrs for later analysis
 
 Resume tuning by reusing the same `--storage` and optionally `--study-name`.
+
+#### Visualization sample outputs
+
+- Grid run (`2025-11-17_grid`): see `reports/grid_sample/`
+  - ![decode_vs_ngl](reports/grid_sample/decode_vs_ngl.png)
+  - ![decode_heatmap_fa0](reports/grid_sample/decode_heatmap_fa0.png)
+  - ![decode_heatmap_fa1](reports/grid_sample/decode_heatmap_fa1.png)
+- Optuna run (`2025-11-19_optuna_seed42`): see `reports/optuna_sample/`
+  - ![optuna_decode_vs_trial](reports/optuna_sample/optuna_decode_vs_trial.png)
+  - ![optuna_decode_scatter_ngl_batch_fa](reports/optuna_sample/optuna_decode_scatter_ngl_batch_fa.png)
+- `viz_optuna` plots highlight the seeded default combo exactly once (no duplicated “initial value” markers)
 
 ### 3. Visualization (`llama-tune-viz` & `viz_optuna`)
 

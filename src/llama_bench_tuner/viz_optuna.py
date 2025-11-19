@@ -56,7 +56,7 @@ def _plot_decode_vs_trial(df: pd.DataFrame, outdir: Path):
         else pd.Series(False, index=ordered.index)
     )
     if default_mask.any():
-        default_pts = ordered[default_mask]
+        default_pts = ordered[default_mask].head(1)
         ax.scatter(
             default_pts["number"],
             default_pts["value"],

@@ -1,10 +1,13 @@
 # src/llama_bench_tuner/viz.py
 import argparse
 from pathlib import Path
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import seaborn as sns
+
+DEFAULT_COMBO = {"ngl": 16, "b": 8, "fa": 0}
 
 
 def _apply_gray_grid(ax):
@@ -42,31 +45,103 @@ def main():
     # Save table
     best_per_ngl.to_csv(args.outdir / "best_per_ngl.csv", index=False)
 
-    # Plot decode vs ngl for all evaluated configurations
-    plt.figure(figsize=(7, 4.5))
-    ax = plt.gca()
-    sns.scatterplot(
-        data=rank,
-        x="ngl",
-        y="decode_tps",
-        hue="b",
-        style="fa",
-        palette="viridis",
-        s=90,
-        edgecolor="black",
-        linewidth=0.3,
-        alpha=0.85,
-        ax=ax,
-    )
-    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-    _apply_gray_grid(ax)
-    ax.set_xlabel("ngl (GPU layers)")
-    ax.set_ylabel("decode tok/s")
-    ax.set_title("Decode tok/s per ngl (all configs)")
-    handles, labels = ax.get_legend_handles_labels()
-    if handles:
-        ax.legend(title="batch (style = flash-attn)", loc="best")
-    plt.tight_layout()
+    # Plot decode vs ngl using scatter panels per flash-attn value
+    fa_values = sorted(rank["fa"].dropna().unique()) if "fa" in rank else []
+    n_cols = max(1, min(2, len(fa_values)))
+    n_rows = (len(fa_values) + n_cols - 1) // n_cols
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(7.5 * n_cols, 4.2 * n_rows), sharey=True)
+    axes = np.atleast_1d(axes).ravel()
+
+    palette = sns.color_palette()
+    legend_handles = {}
+
+    targets = fa_values or [None]
+    for idx, fa_val in enumerate(targets):
+        ax = axes[idx]
+        if fa_val is None:
+            sub = rank
+            title = "All flash-attn"
+        else:
+            sub = rank[rank["fa"] == fa_val]
+            title = f"flash-attn = {int(fa_val)}"
+        palette = sns.color_palette(n_colors=sub["b"].nunique() or 1)
+        sns.scatterplot(
+            data=sub,
+            x="ngl",
+            y="decode_tps",
+            hue="b",
+            palette=palette,
+            s=85,
+            linewidth=0.4,
+            edgecolor="black",
+            alpha=0.9,
+            ax=ax,
+        )
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        _apply_gray_grid(ax)
+        ax.set_xlabel("ngl")
+        if idx % n_cols == 0:
+            ax.set_ylabel("decode tok/s")
+        else:
+            ax.set_ylabel("")
+        ax.set_title(title)
+
+        # highlight default/best if they appear in this subset
+        default_row = sub[
+            (sub["ngl"] == DEFAULT_COMBO["ngl"]) &
+            (sub["b"] == DEFAULT_COMBO["b"])
+        ].head(1)
+        if fa_val == DEFAULT_COMBO["fa"] and not default_row.empty:
+            ax.scatter(
+                default_row["ngl"],
+                default_row["decode_tps"],
+                s=170,
+                color="#2ca02c",
+                edgecolor="black",
+                linewidth=0.6,
+                marker="o",
+                label="default params",
+                zorder=6,
+            )
+
+        if not sub.empty and rank.index[0] in sub.index:
+            # best row belongs to this subset
+            best_row = sub.loc[[rank.index[0]]]
+            ax.scatter(
+                best_row["ngl"],
+                best_row["decode_tps"],
+                s=230,
+                color="#e31a1c",
+                edgecolor="black",
+                linewidth=0.6,
+                marker="*",
+                label="best decode",
+                zorder=7,
+            )
+
+        handles, labels = ax.get_legend_handles_labels()
+        if handles:
+            for handle, label in zip(handles, labels):
+                if label and label not in legend_handles:
+                    legend_handles[label] = handle
+        ax.legend_.remove() if ax.legend_ else None
+
+    # remove unused axes
+    for extra_ax in axes[len(targets):]:
+        extra_ax.remove()
+
+    if legend_handles:
+        fig.legend(
+            handles=legend_handles.values(),
+            labels=legend_handles.keys(),
+            title="batch size",
+            loc="upper center",
+            ncol=min(4, len(legend_handles)),
+            frameon=True,
+        )
+
+    fig.suptitle("Decode tok/s by ngl")
+    plt.tight_layout(rect=(0, 0, 1, 0.92))
     plt.savefig(args.outdir / "decode_vs_ngl.png")
     plt.close()
 
