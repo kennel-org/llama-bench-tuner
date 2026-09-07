@@ -1,0 +1,142 @@
+"""Stable llama-bench command construction and placement metadata."""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable, Mapping
+
+from .parsing import BenchCsvRow
+
+
+@dataclass(frozen=True)
+class LlamaBenchCommand:
+    """Arguments shared by the legacy Grid and Optuna runners.
+
+    This intentionally represents only options already emitted by the runners.
+    New llama.cpp tuning axes belong to later phases and must not alter legacy
+    command lines by default.
+    """
+
+    llama_bench: Path
+    model: Path
+    threads: int
+    ngl: int
+    batch: int
+    ubatch: int
+    prompt: int
+    ngen: int
+    mmap: int
+    flash_attn: int | None
+    nkvo: int | None = None
+    split_mode: str | None = None
+    output_format: str = "csv"
+    verbose: bool = False
+    option_order: tuple[str, ...] = ("flash_attn", "nkvo", "split_mode")
+
+
+def build_llama_bench_command(spec: LlamaBenchCommand) -> list[str]:
+    """Build the legacy llama-bench invocation in its established argument order."""
+
+    command = [
+        str(spec.llama_bench),
+        "-m", str(spec.model),
+        "-t", str(spec.threads),
+        "-ngl", str(spec.ngl),
+        "-b", str(spec.batch),
+        "-ub", str(spec.ubatch),
+        "-p", str(spec.prompt),
+        "-n", str(spec.ngen),
+        "-mmp", str(spec.mmap),
+        "-o", spec.output_format,
+    ]
+    if spec.verbose:
+        command.append("-v")
+    optional = {
+        "flash_attn": ("-fa", str(spec.flash_attn)) if spec.flash_attn is not None else None,
+        "nkvo": ("-nkvo", str(spec.nkvo)) if spec.nkvo is not None else None,
+        "split_mode": ("-sm", spec.split_mode) if spec.split_mode else None,
+    }
+    for name in spec.option_order:
+        if name not in optional:
+            raise ValueError(f"Unknown llama-bench option order key: {name}")
+        option = optional[name]
+        if option:
+            command.extend(option)
+    return command
+
+
+def requested_placement_json(spec: LlamaBenchCommand) -> str:
+    """Serialize requested placement without claiming it was realized at runtime."""
+
+    return json.dumps(
+        {
+            "n_gpu_layers": spec.ngl,
+            "split_mode": spec.split_mode,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+
+def requested_offload_json(spec: LlamaBenchCommand) -> str:
+    """Serialize offload-related requests separately from observed runtime state."""
+
+    return json.dumps(
+        {"no_kv_offload": spec.nkvo}, separators=(",", ":"), sort_keys=True
+    )
+
+
+_OBSERVED_PLACEMENT_FIELDS = (
+    "n_gpu_layers",
+    "split_mode",
+    "main_gpu",
+    "devices",
+    "tensor_split",
+    "tensor_buft_overrides",
+)
+
+_OBSERVED_OFFLOAD_FIELDS = ("n_gpu_layers", "n_cpu_moe", "no_kv_offload")
+
+
+def observed_placement_json(rows: Iterable[BenchCsvRow]) -> str | None:
+    """Return native llama-bench placement fields, if its CSV reported them.
+
+    A requested placement and an observed placement deliberately remain separate:
+    an argument request is not evidence of the final runtime allocation.
+    """
+
+    observed: list[Mapping[str, str]] = []
+    for row in rows:
+        item = {
+            name: row.values[name]
+            for name in _OBSERVED_PLACEMENT_FIELDS
+            if row.values.get(name) not in (None, "")
+        }
+        if item and item not in observed:
+            observed.append(item)
+    if not observed:
+        return None
+    value: Mapping[str, str] | list[Mapping[str, str]]
+    value = observed[0] if len(observed) == 1 else observed
+    return json.dumps(value, separators=(",", ":"), sort_keys=True)
+
+
+def observed_offload_json(rows: Iterable[BenchCsvRow]) -> str | None:
+    """Return native offload fields only when the benchmark CSV exposed them."""
+
+    observed: list[Mapping[str, str]] = []
+    for row in rows:
+        item = {
+            name: row.values[name]
+            for name in _OBSERVED_OFFLOAD_FIELDS
+            if row.values.get(name) not in (None, "")
+        }
+        if item and item not in observed:
+            observed.append(item)
+    if not observed:
+        return None
+    value: Mapping[str, str] | list[Mapping[str, str]]
+    value = observed[0] if len(observed) == 1 else observed
+    return json.dumps(value, separators=(",", ":"), sort_keys=True)

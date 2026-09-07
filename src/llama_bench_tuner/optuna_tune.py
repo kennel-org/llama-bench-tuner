@@ -11,7 +11,16 @@ from typing import Optional, Tuple
 
 import optuna
 
-from .parsing import extract_tps_from_csv
+from .command_builder import (
+    LlamaBenchCommand,
+    build_llama_bench_command,
+    observed_offload_json,
+    observed_placement_json,
+    requested_offload_json,
+    requested_placement_json,
+)
+from .parsing import extract_tps_from_rows, parse_bench_csv
+from .status import classify_bench_outcome
 
 
 @dataclass
@@ -39,6 +48,23 @@ class BenchArgs:
     out_dir: Path
     tmp_dir: Path
     best: Optional[Path]
+
+
+@dataclass(frozen=True)
+class TrialBenchResult:
+    """One Optuna invocation, including additive compatibility metadata."""
+
+    ok: bool
+    decode_tps: float
+    prefill_tps: float
+    csv: str
+    stderr: str
+    status: str
+    error: str
+    requested_offload: str
+    requested_placement: str
+    observed_offload: str | None
+    observed_placement: str | None
 
 
 def parse_args() -> BenchArgs:
@@ -128,31 +154,21 @@ def run_llama_bench(
     trial_tag: str,
     raw_dir: Path,
     log_dir: Path,
-) -> Tuple[bool, float, float, str, str]:
-    """Run one llama-bench and return (ok, decode_tps, prefill_tps, csv_rel, stderr_rel)."""
+) -> TrialBenchResult:
+    """Run one llama-bench while preserving its native CSV artifact."""
     ub = max(1, int(round(b / args.ub_ratio)))
     tag = f"optuna_{trial_tag}_ngl{ngl}_p{args.prompt}_n{args.ngen}_b{b}ub{ub}_fa{fa}_mmp{args.mmap}"
     csv_path = raw_dir / f"bench_{tag}.csv"
     err_path = log_dir / f"bench_{tag}.stderr.txt"
 
-    cmd = [
-        str(args.llama_bench),
-        "-m", str(args.model),
-        "-t", str(args.threads),
-        "-ngl", str(ngl),
-        "-b", str(b),
-        "-ub", str(ub),
-        "-p", str(args.prompt),
-        "-n", str(args.ngen),
-        "-mmp", str(args.mmap),
-        "-o", "csv",
-    ]
-    if args.nkvo is not None:
-        cmd += ["-nkvo", str(args.nkvo)]
-    if args.split_mode:
-        cmd += ["-sm", args.split_mode]
-    if fa is not None:
-        cmd += ["-fa", str(fa)]
+    spec = LlamaBenchCommand(
+        llama_bench=args.llama_bench, model=args.model, threads=args.threads,
+        ngl=ngl, batch=b, ubatch=ub, prompt=args.prompt, ngen=args.ngen,
+        mmap=args.mmap, flash_attn=fa, nkvo=args.nkvo,
+        split_mode=args.split_mode,
+        option_order=("nkvo", "split_mode", "flash_attn"),
+    )
+    cmd = build_llama_bench_command(spec)
 
     print(f"[RUN] {shlex.join(cmd)}")
     try:
@@ -181,22 +197,40 @@ def run_llama_bench(
             else ""
         )
         err_rel = err_path.relative_to(log_dir.parent if log_dir.parent != log_dir else log_dir).as_posix()
-        return False, 0.0, 0.0, csv_rel, err_rel
+        outcome = classify_bench_outcome(
+            returncode=None, decode_tps=None, stdout=stdout, stderr=stderr, timed_out=True,
+        )
+        return TrialBenchResult(
+            ok=outcome.ok, decode_tps=0.0, prefill_tps=0.0, csv=csv_rel, stderr=err_rel,
+            status=outcome.status.value, error=outcome.error,
+            requested_offload=requested_offload_json(spec),
+            requested_placement=requested_placement_json(spec),
+            observed_offload=None, observed_placement=None,
+        )
 
     csv_path.write_text(stdout)
     if stderr.strip():
         err_path.write_text(stderr)
 
-    prefill_tps, decode_tps = extract_tps_from_csv(stdout.splitlines())
-
-    ok = (decode_tps or 0.0) > 0.0
+    bench_rows = parse_bench_csv(stdout.splitlines())
+    prefill_tps, decode_tps = extract_tps_from_rows(bench_rows)
+    outcome = classify_bench_outcome(
+        returncode=proc.returncode, decode_tps=decode_tps, stdout=stdout, stderr=stderr,
+    )
     csv_rel = csv_path.relative_to(raw_dir.parent if raw_dir.parent != raw_dir else raw_dir).as_posix()
     err_rel = (
         err_path.relative_to(log_dir.parent if log_dir.parent != log_dir else log_dir).as_posix()
         if err_path.exists()
         else ""
     )
-    return ok, (decode_tps or 0.0), (prefill_tps or 0.0), csv_rel, err_rel
+    return TrialBenchResult(
+        ok=outcome.ok, decode_tps=decode_tps or 0.0, prefill_tps=prefill_tps or 0.0,
+        csv=csv_rel, stderr=err_rel, status=outcome.status.value, error=outcome.error,
+        requested_offload=requested_offload_json(spec),
+        requested_placement=requested_placement_json(spec),
+        observed_offload=observed_offload_json(bench_rows),
+        observed_placement=observed_placement_json(bench_rows),
+    )
 
 
 def build_pruner(name: str):
@@ -222,19 +256,25 @@ def objective(
     fa  = trial.suggest_categorical("fa", list(args.flash_attn)) if args.flash_attn else 0
 
     trial_tag = f"trial{trial.number:04d}"
-    ok, decode_tps, prefill_tps, csv_name, stderr_name = run_llama_bench(args, ngl, b, fa, trial_tag, raw_dir, log_dir)
+    result = run_llama_bench(args, ngl, b, fa, trial_tag, raw_dir, log_dir)
 
     # Attach trial user attrs for later inspection
-    trial.set_user_attr("csv", csv_name)
-    trial.set_user_attr("stderr", stderr_name)
-    trial.set_user_attr("prefill_tps", prefill_tps)
+    trial.set_user_attr("csv", result.csv)
+    trial.set_user_attr("stderr", result.stderr)
+    trial.set_user_attr("prefill_tps", result.prefill_tps)
+    trial.set_user_attr("status", result.status)
+    trial.set_user_attr("error", result.error)
+    trial.set_user_attr("requested_offload", result.requested_offload)
+    trial.set_user_attr("requested_placement", result.requested_placement)
+    trial.set_user_attr("observed_offload", result.observed_offload)
+    trial.set_user_attr("observed_placement", result.observed_placement)
 
-    if not ok:
+    if not result.ok:
         # Penalize failed run
         return 0.0
 
     # Report final value (higher is better)
-    return float(decode_tps)
+    return float(result.decode_tps)
 
 
 def main():
@@ -291,7 +331,10 @@ def main():
     # Persist all trials to CSV (nice to have)
     trials_csv = run_root / "optuna_trials.csv"
     with trials_csv.open("w", newline="") as f:
-        cols = ["number","value","state","ngl","batch","fa","prefill_tps","csv","stderr"]
+        # The original columns remain first: viz_optuna consumes only these.
+        cols = ["number","value","state","ngl","batch","fa","prefill_tps","csv","stderr",
+                "status","error","requested_offload","requested_placement",
+                "observed_offload","observed_placement"]
         w = csv.DictWriter(f, fieldnames=cols)
         w.writeheader()
         for t in study.trials:
@@ -305,6 +348,12 @@ def main():
                 "prefill_tps": t.user_attrs.get("prefill_tps"),
                 "csv": t.user_attrs.get("csv"),
                 "stderr": t.user_attrs.get("stderr"),
+                "status": t.user_attrs.get("status"),
+                "error": t.user_attrs.get("error"),
+                "requested_offload": t.user_attrs.get("requested_offload"),
+                "requested_placement": t.user_attrs.get("requested_placement"),
+                "observed_offload": t.user_attrs.get("observed_offload"),
+                "observed_placement": t.user_attrs.get("observed_placement"),
             }
             w.writerow(row)
 

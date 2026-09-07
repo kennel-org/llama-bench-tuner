@@ -42,8 +42,19 @@ uv pip install -e .
 | `llama-tune` | `llama_bench_tuner.tune:main` | グリッド探索ドライバー |
 | `llama-tune-viz` | `llama_bench_tuner.viz:main` | グリッドサマリーの可視化 |
 | `llama-tune-optuna` | `llama_bench_tuner.optuna_tune:main` | Optuna サーチドライバー |
+| `llama-tune-viz-opt` | `llama_bench_tuner.viz_optuna:main` | Optuna サマリーの可視化 |
+| `llama-tune-capabilities` | `llama_bench_tuner.capabilities:main` | read-only の `llama-bench --help` capability probe |
 
 生成物は既定で `outfile/`（RAW CSV、サマリー、プロット）および `tmp/`（stderr ログ）に出力されます。書き込み権限を確認してください。
+
+非legacyの llama.cpp 軸を追加する前に、対象binaryで文書化されたoptionを記録する。
+
+```bash
+llama-tune-capabilities --llama-bench /path/to/llama-bench --output outfile/capabilities.json
+```
+
+Grid summaryは従来列を先頭に維持する。追加metadataでは requested
+offload/placement と native benchmark CSV が報告した値を分離する。
 
 ---
 
@@ -61,6 +72,21 @@ llama-tune \
   --ngl 16 20 24 28 \
   --batch 8 12 \
   --flash-attn 0 1
+```
+
+再開可能な実行では、固定した実行ディレクトリを指定する。各ケース後に
+`checkpoint.json` を1個だけ上書きし、`run_metadata.json`、`run_result.json`、
+raw CSV、サマリーも同じディレクトリへ保存する。
+
+```bash
+llama-tune ... --run-dir outfile/grid/qwen27b_p40_gpu0
+llama-tune ... --run-dir outfile/grid/qwen27b_p40_gpu0 --resume
+```
+
+GPUの接続方式は推測せず、必要なら秘密情報ではない環境ラベルを明示する。
+
+```bash
+BENCH_HOST=x1ai BENCH_GPU=P40-0 BENCH_GPU_CONNECTION=OCuLink llama-tune ...
 ```
 
 GPT-OSS-120B 向けの探索レンジ例
