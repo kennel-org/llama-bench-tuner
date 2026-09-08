@@ -35,15 +35,26 @@ source .venv/bin/activate
 uv pip install -e .
 ```
 
-The package installs three console scripts:
+The package installs five console scripts:
 
 | Script | Entry point | Purpose |
 | --- | --- | --- |
 | `llama-tune` | `llama_bench_tuner.tune:main` | Grid search driver |
 | `llama-tune-viz` | `llama_bench_tuner.viz:main` | Visualize grid summaries |
 | `llama-tune-optuna` | `llama_bench_tuner.optuna_tune:main` | Optuna search driver |
+| `llama-tune-viz-opt` | `llama_bench_tuner.viz_optuna:main` | Visualize Optuna summaries |
+| `llama-tune-capabilities` | `llama_bench_tuner.capabilities:main` | Read-only `llama-bench --help` capability probe |
 
 All generated artifacts default to the `outfile/` directory (raw CSVs, summaries, plots) and `tmp/` for stderr logs; ensure those paths are writable.
+
+Before adding a non-legacy llama.cpp axis, record the installed binary's documented options:
+
+```bash
+llama-tune-capabilities --llama-bench /path/to/llama-bench --output outfile/capabilities.json
+```
+
+The Grid summary retains its original columns first. Additive metadata keeps requested
+offload/placement separate from values actually reported by the native benchmark CSV.
 
 ---
 
@@ -73,6 +84,22 @@ llama-tune \
   --ngl 16 20 24 28 \
   --batch 8 12 \
   --flash-attn 0 1
+```
+
+For a resumable run, provide a stable run directory. The runner writes
+`checkpoint.json`, `run_metadata.json`, `run_result.json`, raw CSV files, and a
+summary there, and overwrites the single checkpoint after each case:
+
+```bash
+llama-tune ... --run-dir outfile/grid/qwen27b_p40_gpu0
+llama-tune ... --run-dir outfile/grid/qwen27b_p40_gpu0 --resume
+```
+
+Optional non-secret host labels can be supplied explicitly instead of guessing
+GPU topology:
+
+```bash
+BENCH_HOST=x1ai BENCH_GPU=P40-0 BENCH_GPU_CONNECTION=OCuLink llama-tune ...
 ```
 
 Typical GPT-OSS-120B search range
