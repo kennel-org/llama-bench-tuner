@@ -1,9 +1,11 @@
 # src/llama_bench_tuner/tune.py
 import argparse
 import csv
+import hashlib
 import json
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from rich import print
@@ -117,17 +119,82 @@ def case_key(ngl: int, b: int, fa: int) -> str:
     return f"ngl={ngl},b={b},fa={fa}"
 
 
+def benchmark_definition(args, cases: list[tuple[int, int, int]]) -> dict:
+    """Return every setting that makes a Grid result incomparable on resume."""
+
+    return {
+        "llama_bench": str(args.llama_bench.resolve()),
+        "model": str(args.model.resolve()),
+        "threads": args.threads,
+        "prompt": args.prompt,
+        "ngen": args.ngen,
+        "mmap": args.mmap,
+        "ub_ratio": args.ub_ratio,
+        "nkvo": args.nkvo,
+        "split_mode": args.split_mode,
+        "allow_wsl_unsafe": args.allow_wsl_unsafe,
+        "cases": cases,
+    }
+
+
+def benchmark_fingerprint(definition: dict) -> str:
+    payload = json.dumps(definition, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    """Replace a checkpoint atomically, preserving the old file on interruption."""
+
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent,
+            prefix=f".{path.name}.", suffix=".tmp", delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            temporary.write(content)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        os.replace(temporary_path, path)
+    except Exception:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise
+
+
 def write_checkpoint(path: Path, *, completed_items: list[str], rows: list[dict],
-                     started: datetime, base_elapsed: float = 0.0) -> None:
+                     started: datetime, benchmark_fingerprint_value: str,
+                     base_elapsed: float = 0.0) -> None:
     elapsed = base_elapsed + (datetime.now(timezone.utc) - started).total_seconds()
-    path.write_text(json.dumps({
+    content = json.dumps({
         "schema_version": SCHEMA_VERSION,
+        "benchmark_fingerprint": benchmark_fingerprint_value,
         "completed_index": len(completed_items),
         "completed_items": completed_items,
         "results": rows,
         "elapsed_seconds": elapsed,
         "wall_clock": str(timedelta(seconds=int(elapsed))),
-    }, ensure_ascii=False, indent=2) + "\n")
+    }, ensure_ascii=False, indent=2) + "\n"
+    _atomic_write_text(path, content)
+
+
+def _load_json(path: Path, label: str) -> dict:
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"[FATAL] Cannot resume: invalid {label} at {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise SystemExit(f"[FATAL] Cannot resume: {label} at {path} is not a JSON object")
+    return data
+
+
+def _validate_resume_fingerprint(source: str, state: dict, expected: str) -> None:
+    actual = state.get("benchmark_fingerprint")
+    if actual != expected:
+        raise SystemExit(
+            f"[FATAL] Cannot resume: {source} benchmark fingerprint differs from this invocation. "
+            "Use a new --run-dir for changed benchmark settings."
+        )
 
 def run_once(args, ngl:int, b:int, fa:int, raw_dir:Path, log_dir:Path):
     """Run llama-bench once and return decode/prefill tps. Saves raw CSV and STDERR."""
@@ -214,18 +281,31 @@ def main():
         for b in [int(x) for x in args.batch]
         for fa in [int(x) for x in args.flash_attn]
     ]
+    definition = benchmark_definition(args, cases)
+    fingerprint = benchmark_fingerprint(definition)
     started = datetime.now(timezone.utc)
     base_elapsed = 0.0
     rows: list[dict] = []
     completed_items: list[str] = []
-    if args.resume and checkpoint_path.exists():
-        state = json.loads(checkpoint_path.read_text())
-        rows = state.get("results", [])
-        completed_items = state.get("completed_items", [])
-        base_elapsed = float(state.get("elapsed_seconds", 0.0))
-        print(f"[cyan]RESUME[/cyan] {len(completed_items)}/{len(cases)} cases from {checkpoint_path}")
-    elif args.resume:
-        print(f"[cyan]RESUME[/cyan] no checkpoint found; starting a new run in {run_root}")
+    if args.resume:
+        if checkpoint_path.exists() and not metadata_path.exists():
+            raise SystemExit(
+                "[FATAL] Cannot resume: checkpoint exists without run_metadata.json; "
+                "use a new --run-dir."
+            )
+        if metadata_path.exists():
+            _validate_resume_fingerprint(
+                "run metadata", _load_json(metadata_path, "run metadata"), fingerprint,
+            )
+        if checkpoint_path.exists():
+            state = _load_json(checkpoint_path, "checkpoint")
+            _validate_resume_fingerprint("checkpoint", state, fingerprint)
+            rows = state.get("results", [])
+            completed_items = state.get("completed_items", [])
+            base_elapsed = float(state.get("elapsed_seconds", 0.0))
+            print(f"[cyan]RESUME[/cyan] {len(completed_items)}/{len(cases)} cases from {checkpoint_path}")
+        else:
+            print(f"[cyan]RESUME[/cyan] no checkpoint found; starting a new run in {run_root}")
 
     if not (args.resume and metadata_path.exists()):
         metadata_path.write_text(json.dumps({
@@ -233,6 +313,8 @@ def main():
             "runner": "llama-tune",
             "started": started.isoformat(timespec="seconds"),
             "args": {key: str(value) for key, value in vars(args).items()},
+            "benchmark_definition": definition,
+            "benchmark_fingerprint": fingerprint,
         }, ensure_ascii=False, indent=2) + "\n")
 
     total = len(cases)
@@ -275,6 +357,7 @@ def main():
             completed_items=completed_items,
             rows=rows,
             started=started,
+            benchmark_fingerprint_value=fingerprint,
             base_elapsed=base_elapsed,
         )
 
@@ -289,6 +372,7 @@ def main():
     (run_root / "run_result.json").write_text(json.dumps({
         "schema_version": SCHEMA_VERSION,
         "runner": "llama-tune",
+        "benchmark_fingerprint": fingerprint,
         "results": rows,
         "result_count": len(rows),
         "elapsed_seconds": elapsed,

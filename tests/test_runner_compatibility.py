@@ -1,10 +1,13 @@
 import csv
+import json
 import os
 import stat
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
+from unittest import mock
 
 os.environ.setdefault("MPLBACKEND", "Agg")
 
@@ -49,7 +52,7 @@ class RunnerCompatibilityTests(unittest.TestCase):
             self._call(tune.main, [
                 "llama-tune", "--llama-bench", str(binary), "--model", str(model),
                 "--ngl", "16", "--batch", "8", "--flash-attn", "0", "--out-dir", str(outdir),
-                "--tmp-dir", str(tmpdir), "--run-dir", str(grid_run),
+                "--tmp-dir", str(tmpdir), "--in-dir", str(root / "in"), "--run-dir", str(grid_run),
             ])
             summary = grid_run / "summary_stable.csv"
             with summary.open(newline="") as f:
@@ -78,6 +81,58 @@ class RunnerCompatibilityTests(unittest.TestCase):
             self._call(viz_optuna.main, ["llama-tune-viz-opt", "--trials", str(trials), "--best", str(best), "--outdir", str(opt_viz)])
             self.assertTrue((opt_viz / "optuna_ranking_decode.csv").exists())
             self.assertTrue((opt_viz / "heatmaps" / "optuna_decode_heatmap_fa0.png").exists())
+
+    def test_resume_rejects_a_changed_benchmark_definition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binary = self._fake_bench(root)
+            model = root / "model.gguf"
+            model.touch()
+            run_dir = root / "run"
+            base_args = [
+                "llama-tune", "--llama-bench", str(binary), "--model", str(model),
+                "--ngl", "16", "--batch", "8", "--flash-attn", "0", "--out-dir", str(root / "out"),
+                "--tmp-dir", str(root / "tmp"), "--in-dir", str(root / "in"), "--run-dir", str(run_dir),
+            ]
+            self._call(tune.main, base_args)
+            metadata = json.loads((run_dir / "run_metadata.json").read_text())
+            checkpoint = json.loads((run_dir / "checkpoint.json").read_text())
+            self.assertEqual(metadata["benchmark_fingerprint"], checkpoint["benchmark_fingerprint"])
+
+            with self.assertRaisesRegex(SystemExit, "fingerprint differs"):
+                self._call(tune.main, base_args + ["--resume", "--prompt", "128"])
+
+    def test_checkpoint_uses_atomic_replace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint = Path(tmp) / "checkpoint.json"
+            with mock.patch("llama_bench_tuner.tune.os.replace", wraps=os.replace) as replace:
+                tune.write_checkpoint(
+                    checkpoint,
+                    completed_items=["ngl=16,b=8,fa=0"],
+                    rows=[{"ok": True}],
+                    started=datetime.now(timezone.utc),
+                    benchmark_fingerprint_value="fingerprint",
+                )
+            self.assertEqual(checkpoint, replace.call_args.args[1])
+            state = json.loads(checkpoint.read_text())
+            self.assertEqual("fingerprint", state["benchmark_fingerprint"])
+            self.assertEqual([], list(checkpoint.parent.glob(".checkpoint.json.*.tmp")))
+
+    def test_checkpoint_replace_failure_preserves_previous_checkpoint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint = Path(tmp) / "checkpoint.json"
+            checkpoint.write_text('{"previous": true}\n')
+            with mock.patch("llama_bench_tuner.tune.os.replace", side_effect=OSError("disk error")):
+                with self.assertRaisesRegex(OSError, "disk error"):
+                    tune.write_checkpoint(
+                        checkpoint,
+                        completed_items=["ngl=16,b=8,fa=0"],
+                        rows=[{"ok": True}],
+                        started=datetime.now(timezone.utc),
+                        benchmark_fingerprint_value="fingerprint",
+                    )
+            self.assertEqual({"previous": True}, json.loads(checkpoint.read_text()))
+            self.assertEqual([], list(checkpoint.parent.glob(".checkpoint.json.*.tmp")))
 
 
 if __name__ == "__main__":
