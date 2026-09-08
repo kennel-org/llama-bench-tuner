@@ -59,7 +59,7 @@ class RunnerCompatibilityTests(unittest.TestCase):
                 grid_rows = list(csv.DictReader(f))
                 self.assertEqual(LEGACY_GRID_FIELDS, list(grid_rows[0])[:len(LEGACY_GRID_FIELDS)])
                 self.assertEqual("success", grid_rows[0]["status"])
-                self.assertNotEqual(grid_rows[0]["requested_placement"], grid_rows[0]["observed_placement"])
+                self.assertNotEqual(grid_rows[0]["requested_placement"], grid_rows[0]["native_reported_placement"])
             grid_viz = root / "grid-viz"
             self._call(viz.main, ["llama-tune-viz", "--summary", str(summary), "--outdir", str(grid_viz)])
             self.assertTrue((grid_viz / "ranking_decode.csv").exists())
@@ -101,6 +101,55 @@ class RunnerCompatibilityTests(unittest.TestCase):
 
             with self.assertRaisesRegex(SystemExit, "fingerprint differs"):
                 self._call(tune.main, base_args + ["--resume", "--prompt", "128"])
+
+    def test_resume_rejects_a_binary_rebuilt_at_the_same_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binary = self._fake_bench(root)
+            model = root / "model.gguf"
+            model.touch()
+            run_dir = root / "run"
+            base_args = [
+                "llama-tune", "--llama-bench", str(binary), "--model", str(model),
+                "--ngl", "16", "--batch", "8", "--flash-attn", "0", "--out-dir", str(root / "out"),
+                "--tmp-dir", str(root / "tmp"), "--in-dir", str(root / "in"), "--run-dir", str(run_dir),
+            ]
+            self._call(tune.main, base_args)
+
+            # Same path, different content: a rebuilt binary must not be
+            # accepted as the same identity, even though the resolved path
+            # is unchanged.
+            binary.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' 'build_commit,n_gpu_layers,no_kv_offload,split_mode,n_prompt,n_gen,n_depth,avg_ts'\n"
+                "printf '%s\\n' 'rebuilt,16,0,layer,64,0,1024,999.0'\n"
+                "printf '%s\\n' 'rebuilt,16,0,layer,0,16,1024,888.0'\n"
+            )
+            binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+
+            with self.assertRaisesRegex(SystemExit, "fingerprint differs"):
+                self._call(tune.main, base_args + ["--resume"])
+
+    def test_resume_rejects_a_model_replaced_at_the_same_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binary = self._fake_bench(root)
+            model = root / "model.gguf"
+            model.write_bytes(b"a")
+            run_dir = root / "run"
+            base_args = [
+                "llama-tune", "--llama-bench", str(binary), "--model", str(model),
+                "--ngl", "16", "--batch", "8", "--flash-attn", "0", "--out-dir", str(root / "out"),
+                "--tmp-dir", str(root / "tmp"), "--in-dir", str(root / "in"), "--run-dir", str(run_dir),
+            ]
+            self._call(tune.main, base_args)
+
+            # Same path, different size: a replaced model must not be
+            # accepted as the same identity.
+            model.write_bytes(b"a different model")
+
+            with self.assertRaisesRegex(SystemExit, "fingerprint differs"):
+                self._call(tune.main, base_args + ["--resume"])
 
     def test_checkpoint_uses_atomic_replace(self):
         with tempfile.TemporaryDirectory() as tmp:

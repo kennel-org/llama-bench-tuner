@@ -13,8 +13,8 @@ from rich import print
 from .command_builder import (
     LlamaBenchCommand,
     build_llama_bench_command,
-    observed_offload_json,
-    observed_placement_json,
+    native_reported_offload_json,
+    native_reported_placement_json,
     requested_offload_json,
     requested_placement_json,
 )
@@ -119,12 +119,46 @@ def case_key(ngl: int, b: int, fa: int) -> str:
     return f"ngl={ngl},b={b},fa={fa}"
 
 
+def _sha256_file(path: Path, *, chunk_size: int = 1024 * 1024) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(chunk_size), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _file_identity(path: Path, *, hash_content: bool) -> dict:
+    """Return a lightweight identity for a path used in the fingerprint.
+
+    A resolved path alone does not detect a binary rebuild or a model
+    replacement at the same path, so a checkpoint could silently mix results
+    from different builds/weights. Binaries are small, so their full content
+    is hashed; models can be tens of GB, so only cheap stat-based identity
+    (size + mtime_ns) is used for them.
+    """
+
+    try:
+        info = path.stat()
+    except OSError:
+        return {"exists": False}
+    identity: dict[str, object] = {
+        "exists": True,
+        "size": info.st_size,
+        "mtime_ns": info.st_mtime_ns,
+    }
+    if hash_content:
+        identity["sha256"] = _sha256_file(path)
+    return identity
+
+
 def benchmark_definition(args, cases: list[tuple[int, int, int]]) -> dict:
     """Return every setting that makes a Grid result incomparable on resume."""
 
     return {
         "llama_bench": str(args.llama_bench.resolve()),
+        "llama_bench_identity": _file_identity(args.llama_bench, hash_content=True),
         "model": str(args.model.resolve()),
+        "model_identity": _file_identity(args.model, hash_content=False),
         "threads": args.threads,
         "prompt": args.prompt,
         "ngen": args.ngen,
@@ -252,8 +286,8 @@ def run_once(args, ngl:int, b:int, fa:int, raw_dir:Path, log_dir:Path):
     }, model=args.model, llama_bench=args.llama_bench, prompt=args.prompt, ngen=args.ngen,
        requested_offload=requested_offload_json(spec),
        requested_placement=requested_placement_json(spec),
-       observed_offload=observed_offload_json(bench_rows),
-       observed_placement=observed_placement_json(bench_rows))
+       native_reported_offload=native_reported_offload_json(bench_rows),
+       native_reported_placement=native_reported_placement_json(bench_rows))
 
 def main():
     args = apply_space_file(parse_args())

@@ -14,8 +14,8 @@ import optuna
 from .command_builder import (
     LlamaBenchCommand,
     build_llama_bench_command,
-    observed_offload_json,
-    observed_placement_json,
+    native_reported_offload_json,
+    native_reported_placement_json,
     requested_offload_json,
     requested_placement_json,
 )
@@ -63,8 +63,8 @@ class TrialBenchResult:
     error: str
     requested_offload: str
     requested_placement: str
-    observed_offload: str | None
-    observed_placement: str | None
+    native_reported_offload: str | None
+    native_reported_placement: str | None
 
 
 def parse_args() -> BenchArgs:
@@ -205,7 +205,7 @@ def run_llama_bench(
             status=outcome.status.value, error=outcome.error,
             requested_offload=requested_offload_json(spec),
             requested_placement=requested_placement_json(spec),
-            observed_offload=None, observed_placement=None,
+            native_reported_offload=None, native_reported_placement=None,
         )
 
     csv_path.write_text(stdout)
@@ -228,8 +228,8 @@ def run_llama_bench(
         csv=csv_rel, stderr=err_rel, status=outcome.status.value, error=outcome.error,
         requested_offload=requested_offload_json(spec),
         requested_placement=requested_placement_json(spec),
-        observed_offload=observed_offload_json(bench_rows),
-        observed_placement=observed_placement_json(bench_rows),
+        native_reported_offload=native_reported_offload_json(bench_rows),
+        native_reported_placement=native_reported_placement_json(bench_rows),
     )
 
 
@@ -266,8 +266,8 @@ def objective(
     trial.set_user_attr("error", result.error)
     trial.set_user_attr("requested_offload", result.requested_offload)
     trial.set_user_attr("requested_placement", result.requested_placement)
-    trial.set_user_attr("observed_offload", result.observed_offload)
-    trial.set_user_attr("observed_placement", result.observed_placement)
+    trial.set_user_attr("native_reported_offload", result.native_reported_offload)
+    trial.set_user_attr("native_reported_placement", result.native_reported_placement)
 
     if not result.ok:
         # Penalize failed run
@@ -334,7 +334,7 @@ def main():
         # The original columns remain first: viz_optuna consumes only these.
         cols = ["number","value","state","ngl","batch","fa","prefill_tps","csv","stderr",
                 "status","error","requested_offload","requested_placement",
-                "observed_offload","observed_placement"]
+                "native_reported_offload","native_reported_placement"]
         w = csv.DictWriter(f, fieldnames=cols)
         w.writeheader()
         for t in study.trials:
@@ -352,8 +352,8 @@ def main():
                 "error": t.user_attrs.get("error"),
                 "requested_offload": t.user_attrs.get("requested_offload"),
                 "requested_placement": t.user_attrs.get("requested_placement"),
-                "observed_offload": t.user_attrs.get("observed_offload"),
-                "observed_placement": t.user_attrs.get("observed_placement"),
+                "native_reported_offload": t.user_attrs.get("native_reported_offload"),
+                "native_reported_placement": t.user_attrs.get("native_reported_placement"),
             }
             w.writerow(row)
 

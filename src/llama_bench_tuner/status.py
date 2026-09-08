@@ -49,22 +49,33 @@ def classify_bench_outcome(
 ) -> BenchOutcome:
     """Classify one completed or skipped execution.
 
-    Existing runners use a parsed positive decode metric as their success
-    contract. Preserve that contract first; status enriches failed cases only.
+    ``ok`` preserves the legacy success contract used by existing Grid/Optuna
+    consumers (a parsed positive decode metric), unaffected by ``returncode``.
+    ``status`` is the stricter canonical taxonomy: a non-zero exit always
+    yields ``failed``/``oom``/``unsupported`` even when a decode metric was
+    still parsed, so a crashed-but-partially-printed run is never reported as
+    ``success``.
     """
+
+    ok = (decode_tps or 0.0) > 0.0
+    material = f"{stdout}\n{stderr}".lower()
 
     if skip_reason:
         return BenchOutcome(BenchStatus.SKIPPED, False, skip_reason)
     if timed_out:
         return BenchOutcome(BenchStatus.TIMEOUT, False, "llama-bench exceeded timeout")
-    if (decode_tps or 0.0) > 0.0:
-        return BenchOutcome(BenchStatus.SUCCESS, True, "")
 
-    material = f"{stdout}\n{stderr}".lower()
+    if returncode not in (None, 0):
+        if any(marker in material for marker in _OOM_MARKERS):
+            return BenchOutcome(BenchStatus.OOM, ok, "llama-bench reported out of memory")
+        if any(marker in material for marker in _UNSUPPORTED_MARKERS):
+            return BenchOutcome(BenchStatus.UNSUPPORTED, ok, "llama-bench reported unsupported configuration")
+        return BenchOutcome(BenchStatus.FAILED, ok, f"llama-bench exited with code {returncode}")
+
+    if ok:
+        return BenchOutcome(BenchStatus.SUCCESS, True, "")
     if any(marker in material for marker in _OOM_MARKERS):
         return BenchOutcome(BenchStatus.OOM, False, "llama-bench reported out of memory")
     if any(marker in material for marker in _UNSUPPORTED_MARKERS):
         return BenchOutcome(BenchStatus.UNSUPPORTED, False, "llama-bench reported unsupported configuration")
-    if returncode not in (None, 0):
-        return BenchOutcome(BenchStatus.FAILED, False, f"llama-bench exited with code {returncode}")
     return BenchOutcome(BenchStatus.FAILED, False, "decode metric was not parsed")

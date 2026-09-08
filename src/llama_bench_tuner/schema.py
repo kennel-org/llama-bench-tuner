@@ -39,8 +39,8 @@ COMMON_RESULT_FIELDS = [
     "moe_mode",
     "requested_offload",
     "requested_placement",
-    "observed_offload",
-    "observed_placement",
+    "native_reported_offload",
+    "native_reported_placement",
     "pp_tps",
     "tg_tps",
     "ttft_ms",
@@ -73,8 +73,8 @@ def enrich_result(result: dict[str, Any], *, model: Path, llama_bench: Path,
                   prompt: int, ngen: int, backend: str = "llama.cpp/llama-bench",
                   requested_offload: str | None = None,
                   requested_placement: str | None = None,
-                  observed_offload: str | None = None,
-                  observed_placement: str | None = None) -> dict[str, Any]:
+                  native_reported_offload: str | None = None,
+                  native_reported_placement: str | None = None) -> dict[str, Any]:
     """Add stable common-schema fields without removing legacy fields."""
 
     model_size = model.stat().st_size if model.exists() else None
@@ -99,8 +99,8 @@ def enrich_result(result: dict[str, Any], *, model: Path, llama_bench: Path,
         "error": result.get("error", ""),
         "requested_offload": requested_offload,
         "requested_placement": requested_placement,
-        "observed_offload": observed_offload,
-        "observed_placement": observed_placement,
+        "native_reported_offload": native_reported_offload,
+        "native_reported_placement": native_reported_placement,
     })
     return enriched
 

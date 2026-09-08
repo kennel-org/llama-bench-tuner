@@ -81,14 +81,14 @@ def requested_placement_json(spec: LlamaBenchCommand) -> str:
 
 
 def requested_offload_json(spec: LlamaBenchCommand) -> str:
-    """Serialize offload-related requests separately from observed runtime state."""
+    """Serialize offload-related requests separately from the native-reported state."""
 
     return json.dumps(
         {"no_kv_offload": spec.nkvo}, separators=(",", ":"), sort_keys=True
     )
 
 
-_OBSERVED_PLACEMENT_FIELDS = (
+_NATIVE_REPORTED_PLACEMENT_FIELDS = (
     "n_gpu_layers",
     "split_mode",
     "main_gpu",
@@ -97,46 +97,53 @@ _OBSERVED_PLACEMENT_FIELDS = (
     "tensor_buft_overrides",
 )
 
-_OBSERVED_OFFLOAD_FIELDS = ("n_gpu_layers", "n_cpu_moe", "no_kv_offload")
+_NATIVE_REPORTED_OFFLOAD_FIELDS = ("n_gpu_layers", "n_cpu_moe", "no_kv_offload")
 
 
-def observed_placement_json(rows: Iterable[BenchCsvRow]) -> str | None:
-    """Return native llama-bench placement fields, if its CSV reported them.
+def native_reported_placement_json(rows: Iterable[BenchCsvRow]) -> str | None:
+    """Return placement fields llama-bench's own CSV self-reported, if any.
 
-    A requested placement and an observed placement deliberately remain separate:
-    an argument request is not evidence of the final runtime allocation.
+    These values are the benchmark binary's own account of its configuration,
+    not an independent runtime measurement (e.g. nvidia-smi telemetry). They
+    deliberately stay separate from the requested placement, which is only the
+    CLI argument, not evidence of what was actually realized. True observed
+    (telemetry-measured) placement is reserved for a later phase.
     """
 
-    observed: list[Mapping[str, str]] = []
+    native_reported: list[Mapping[str, str]] = []
     for row in rows:
         item = {
             name: row.values[name]
-            for name in _OBSERVED_PLACEMENT_FIELDS
+            for name in _NATIVE_REPORTED_PLACEMENT_FIELDS
             if row.values.get(name) not in (None, "")
         }
-        if item and item not in observed:
-            observed.append(item)
-    if not observed:
+        if item and item not in native_reported:
+            native_reported.append(item)
+    if not native_reported:
         return None
     value: Mapping[str, str] | list[Mapping[str, str]]
-    value = observed[0] if len(observed) == 1 else observed
+    value = native_reported[0] if len(native_reported) == 1 else native_reported
     return json.dumps(value, separators=(",", ":"), sort_keys=True)
 
 
-def observed_offload_json(rows: Iterable[BenchCsvRow]) -> str | None:
-    """Return native offload fields only when the benchmark CSV exposed them."""
+def native_reported_offload_json(rows: Iterable[BenchCsvRow]) -> str | None:
+    """Return offload fields llama-bench's own CSV self-reported, if any.
 
-    observed: list[Mapping[str, str]] = []
+    See :func:`native_reported_placement_json`: this is the benchmark's own
+    self-report, not independently measured telemetry.
+    """
+
+    native_reported: list[Mapping[str, str]] = []
     for row in rows:
         item = {
             name: row.values[name]
-            for name in _OBSERVED_OFFLOAD_FIELDS
+            for name in _NATIVE_REPORTED_OFFLOAD_FIELDS
             if row.values.get(name) not in (None, "")
         }
-        if item and item not in observed:
-            observed.append(item)
-    if not observed:
+        if item and item not in native_reported:
+            native_reported.append(item)
+    if not native_reported:
         return None
     value: Mapping[str, str] | list[Mapping[str, str]]
-    value = observed[0] if len(observed) == 1 else observed
+    value = native_reported[0] if len(native_reported) == 1 else native_reported
     return json.dumps(value, separators=(",", ":"), sort_keys=True)
