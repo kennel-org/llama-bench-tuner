@@ -34,6 +34,14 @@ class LlamaBenchCommand:
     output_format: str = "csv"
     verbose: bool = False
     option_order: tuple[str, ...] = ("flash_attn", "nkvo", "split_mode")
+    legacy_mmap_flag: bool = True
+    """Whether the target binary still accepts ``-mmp <0|1>``.
+
+    Newer llama.cpp builds removed ``-mmp`` in favor of ``-lm/--load-mode
+    <auto|none|mmap|mlock|mmap+mlock|dio>``. Defaults to True so existing
+    (older) binaries keep their exact historical command line; callers must
+    opt in via a capability probe to get the ``--load-mode`` translation.
+    """
 
 
 def build_llama_bench_command(spec: LlamaBenchCommand) -> list[str]:
@@ -48,9 +56,12 @@ def build_llama_bench_command(spec: LlamaBenchCommand) -> list[str]:
         "-ub", str(spec.ubatch),
         "-p", str(spec.prompt),
         "-n", str(spec.ngen),
-        "-mmp", str(spec.mmap),
-        "-o", spec.output_format,
     ]
+    if spec.legacy_mmap_flag:
+        command.extend(["-mmp", str(spec.mmap)])
+    else:
+        command.extend(["-lm", "mmap" if spec.mmap else "none"])
+    command.extend(["-o", spec.output_format])
     if spec.verbose:
         command.append("-v")
     optional = {

@@ -45,7 +45,28 @@ class CapabilityTests(unittest.TestCase):
         self.assertTrue(result.flags["cache_type_k"])
         self.assertFalse(result.flags["cache_type_v"])
         self.assertFalse(result.flags["main_gpu"])
+        self.assertFalse(result.flags["mmap"])
         self.assertTrue(result.help_sha256)
+
+    def test_legacy_binary_with_mmp_and_no_load_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = Path(tmp) / "llama-bench"
+            binary.write_text("#!/bin/sh\nprintf '%s\\n' '-mmp, --mmap <0|1> -fa <0|1>'\n")
+            binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+            result = probe_llama_bench(binary)
+        self.assertTrue(result.flags["mmap"])
+        self.assertFalse(result.flags["load_mode"])
+
+    def test_modern_binary_with_load_mode_and_no_mmp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = Path(tmp) / "llama-bench"
+            binary.write_text(
+                "#!/bin/sh\nprintf '%s\\n' '-lm, --load-mode <auto|none|mmap|mlock|mmap+mlock|dio>'\n"
+            )
+            binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+            result = probe_llama_bench(binary)
+        self.assertFalse(result.flags["mmap"])
+        self.assertTrue(result.flags["load_mode"])
 
     def test_missing_binary_is_a_failed_probe_not_an_exception(self):
         result = probe_llama_bench(Path("/definitely/missing/llama-bench"))

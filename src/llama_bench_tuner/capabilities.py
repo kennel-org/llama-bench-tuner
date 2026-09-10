@@ -12,6 +12,7 @@ from pathlib import Path
 
 
 _OPTION_NAMES = {
+    "mmap": "-mmp",
     "n_depth": "--n-depth",
     "cache_type_k": "--cache-type-k",
     "cache_type_v": "--cache-type-v",

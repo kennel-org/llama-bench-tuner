@@ -11,6 +11,7 @@ from typing import Optional, Tuple
 
 import optuna
 
+from .capabilities import probe_llama_bench
 from .command_builder import (
     LlamaBenchCommand,
     build_llama_bench_command,
@@ -48,6 +49,7 @@ class BenchArgs:
     out_dir: Path
     tmp_dir: Path
     best: Optional[Path]
+    legacy_mmap_flag: bool = True
 
 
 @dataclass(frozen=True)
@@ -167,6 +169,7 @@ def run_llama_bench(
         mmap=args.mmap, flash_attn=fa, nkvo=args.nkvo,
         split_mode=args.split_mode,
         option_order=("nkvo", "split_mode", "flash_attn"),
+        legacy_mmap_flag=args.legacy_mmap_flag,
     )
     cmd = build_llama_bench_command(spec)
 
@@ -283,6 +286,16 @@ def main():
         raise SystemExit(f"[FATAL] llama-bench not found: {args.llama_bench}")
     if not args.model.exists():
         raise SystemExit(f"[FATAL] model not found: {args.model}")
+
+    caps = probe_llama_bench(args.llama_bench)
+    # Defaults to the historical -mmp flag unless the probe positively shows
+    # the binary lacks it and has --load-mode instead; a failed/ambiguous
+    # probe must not silently change the emitted command line.
+    args.legacy_mmap_flag = not (
+        caps.error == "" and caps.flags.get("mmap") is False and caps.flags.get("load_mode") is True
+    )
+    if not args.legacy_mmap_flag:
+        print("[INFO] llama-bench lacks -mmp; using --load-mode instead")
 
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     study_slug = _slugify(args.study_name)

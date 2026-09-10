@@ -10,6 +10,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from rich import print
 
+from .capabilities import probe_llama_bench
 from .command_builder import (
     LlamaBenchCommand,
     build_llama_bench_command,
@@ -242,6 +243,7 @@ def run_once(args, ngl:int, b:int, fa:int, raw_dir:Path, log_dir:Path):
         ngl=ngl, batch=b, ubatch=ub, prompt=args.prompt, ngen=args.ngen,
         mmap=args.mmap, flash_attn=fa, nkvo=args.nkvo,
         split_mode=args.split_mode, verbose=True,
+        legacy_mmap_flag=getattr(args, "legacy_mmap_flag", True),
     )
     cmd = build_llama_bench_command(spec)
 
@@ -295,6 +297,16 @@ def main():
         raise SystemExit("[FATAL] --ngl and --batch must be provided via CLI or --space-file")
     if args.resume and args.run_dir is None:
         raise SystemExit("[FATAL] --resume requires --run-dir")
+
+    caps = probe_llama_bench(args.llama_bench)
+    # Defaults to the historical -mmp flag unless the probe positively shows
+    # the binary lacks it and has --load-mode instead; a failed/ambiguous
+    # probe must not silently change the emitted command line.
+    args.legacy_mmap_flag = not (
+        caps.error == "" and caps.flags.get("mmap") is False and caps.flags.get("load_mode") is True
+    )
+    if not args.legacy_mmap_flag:
+        print("[yellow]llama-bench lacks -mmp; using --load-mode instead[/yellow]")
 
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     run_root = args.run_dir or (args.out_dir / "grid" / timestamp)

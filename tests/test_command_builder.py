@@ -28,6 +28,18 @@ class CommandBuilderTests(unittest.TestCase):
             "-mmp", "1", "-o", "csv", "-v", "-fa", "1", "-nkvo", "0", "-sm", "layer",
         ], build_llama_bench_command(self.spec))
 
+    def test_modern_binary_without_mmp_uses_load_mode(self):
+        spec = LlamaBenchCommand(**{**self.spec.__dict__, "legacy_mmap_flag": False})
+        command = build_llama_bench_command(spec)
+        self.assertNotIn("-mmp", command)
+        self.assertIn("-lm", command)
+        self.assertEqual("mmap", command[command.index("-lm") + 1])
+
+    def test_modern_binary_mmap_disabled_uses_load_mode_none(self):
+        spec = LlamaBenchCommand(**{**self.spec.__dict__, "mmap": 0, "legacy_mmap_flag": False})
+        command = build_llama_bench_command(spec)
+        self.assertEqual("none", command[command.index("-lm") + 1])
+
     def test_optuna_command_can_keep_its_existing_optional_order(self):
         spec = LlamaBenchCommand(**{
             **self.spec.__dict__, "verbose": False,
