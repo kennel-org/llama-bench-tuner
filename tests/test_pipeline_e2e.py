@@ -153,8 +153,12 @@ class PipelineEndToEnd(unittest.TestCase):
                                    str(root / "out"), "--tmp-dir", str(root / "tmp"), "--name", "t",
                                    "--depths", "0,8k", "--kv", "f16", "--min-free-vram-gib", "18", "--gpu-index", "0"])
                 self.assertEqual(cm.exception.code, 3)
-            rows = json.loads((root / "out/pipeline/t/capacity/capacity.json").read_text())["status_counts"]
-            self.assertEqual(rows, {"gpu_busy": 1})
+            cap_dir = root / "out/pipeline/t/capacity"
+            # an interrupted sweep must NOT leave a capacity.json that --resume would treat as complete
+            self.assertFalse((cap_dir / "capacity.json").exists())
+            partial = json.loads((cap_dir / "capacity_partial.json").read_text())
+            self.assertEqual(partial["status_counts"], {"gpu_busy": 1})
+            self.assertFalse(partial["complete"])
 
 
 if __name__ == "__main__":

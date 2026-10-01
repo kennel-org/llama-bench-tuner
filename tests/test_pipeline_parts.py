@@ -1,3 +1,4 @@
+import json
 import os
 import stat
 import tempfile
@@ -6,6 +7,7 @@ from pathlib import Path
 
 from llama_bench_tuner.command_builder import LlamaBenchCommand, build_llama_bench_command
 from llama_bench_tuner.gpu_gate import check_gpu, wait_for_gpu
+from llama_bench_tuner.measure import BenchPoint
 from llama_bench_tuner.parsing import extract_metrics_by_depth, extract_tps_from_rows, parse_bench_csv
 from llama_bench_tuner.pareto import dominates, pareto_by_group, pareto_front
 from llama_bench_tuner.schema import PIPELINE_RESULT_FIELDS, pipeline_row
@@ -282,3 +284,87 @@ class CandidateSelectionTests(unittest.TestCase):
             self.assertIn("optuna@131072", sources)
             self.assertIn("optuna@32768", sources)
             self.assertEqual(len({c["point"].config_key() for c in chosen}), 4)
+
+
+class ReviewRegressionTests(unittest.TestCase):
+    def test_grid_defaults_do_not_override_user_choices_and_skip_static_unsupported(self):
+        from llama_bench_tuner.grid_stage import build_cases, default_space
+        base = BenchPoint(ngl=20, flash_attn=1)
+        space = default_space(base)
+        self.assertNotIn("ngl", space)  # capacity ran at ngl=20; the grid must stay comparable
+        self.assertEqual(space["flash_attn"], [1, 0])
+        self.assertEqual(default_space(BenchPoint(flash_attn=0))["flash_attn"], [0])  # explicit FA off stays off
+        cases = build_cases({**space, "batch": [1024], "ubatch": [512]}, [("f16", 8192), ("q8_0", 8192)], base, None)
+        self.assertTrue(all(c.ngl == 20 for c in cases))
+        self.assertFalse(any(c.kv != "f16" and c.flash_attn == 0 for c in cases))  # never generated
+        self.assertEqual(len(cases), 3)  # f16 fa0, f16 fa1, q8_0 fa1
+
+    def test_missing_metrics_do_not_make_everything_pareto_optimal(self):
+        from llama_bench_tuner.pareto import usable_metrics
+        rows = [{"pp": 1, "tg": 5, "ttft": None}, {"pp": 2, "tg": 6, "ttft": None}]
+        self.assertEqual(usable_metrics(rows, ["pp", "tg", "ttft"]), ["pp", "tg"])
+        front = pareto_front(rows, maximize=usable_metrics(rows, ["pp", "tg"]), minimize=usable_metrics(rows, ["ttft"]))
+        self.assertEqual(front, [rows[1]])
+
+    def test_classifier_ignores_benign_words_early_in_a_verbose_log(self):
+        noisy = "\n".join(["load: tensor X is unsupported by this backend, using CPU"] * 3 + ["ok line"] * 300)
+        stderr = noisy + "\nggml-cuda.cu:107: CUDA error\nlibggml-cuda.so.0(_ZN18ggml_cuda_pool_vmm5allocEmPm+0x352)"
+        self.assertEqual(classify_bench_outcome(returncode=134, decode_tps=None, stderr=stderr).status, BenchStatus.OOM)
+        stderr2 = noisy + "\nrocdevice.cpp: HW Exception Error"
+        self.assertEqual(classify_bench_outcome(returncode=134, decode_tps=None, stderr=stderr2).status,
+                         BenchStatus.RUNTIME_ABORT)
+
+    def test_point_roundtrip_keeps_every_axis(self):
+        p = BenchPoint(kv="q8_0", depth=4096, split_mode="row", nkvo=1, threads=8, n_cpu_moe=12, prompt=128, ngen=32)
+        self.assertEqual(BenchPoint.from_dict(json.loads(json.dumps(p.to_dict()))), p)
+        from llama_bench_tuner.validation import _config_of
+        row = {"point_json": json.dumps(p.to_dict())}
+        self.assertEqual(_config_of(row), p.config_key())
+        self.assertNotEqual(p.config_key(), p.replace(split_mode="layer").config_key())
+
+    def test_promising_tolerates_missing_pp(self):
+        from llama_bench_tuner.grid_stage import promising
+        rows = [{"capacity_ok": True, "context_depth": 8192, "tg_tps": 10.0, "pp_tps": None, "vram_peak_mb": None,
+                 "case_key": "a"},
+                {"capacity_ok": True, "context_depth": 8192, "tg_tps": 12.0, "pp_tps": None, "vram_peak_mb": None,
+                 "case_key": "b"}]
+        chosen = {r["case_key"] for r in promising(rows)}  # must not raise on pp=None
+        self.assertIn("b", chosen)  # best tg is always kept
+
+    def test_gpu_busy_trial_does_not_consume_trial_budget(self):
+        from llama_bench_tuner.capabilities import probe_llama_bench
+        from llama_bench_tuner.gpu_gate import GateResult
+        from llama_bench_tuner.measure import GpuBusyError
+        from llama_bench_tuner.optuna_mo import PrunePolicy, run_study
+        from llama_bench_tuner.stage_common import Context
+        import optuna
+        from tests.test_pipeline_e2e import FAKE
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binary = root / "llama-bench"
+            binary.write_text(FAKE)
+            binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+            model = root / "m.gguf"
+            model.write_bytes(b"x")
+            calls = {"n": 0, "fail_at": 5}
+
+            def gate():
+                calls["n"] += 1
+                if calls["n"] == calls["fail_at"]:
+                    return GateResult(False, 0, 1, 0.0, "busy for the test")
+                return GateResult(True, 0, 20000, 0.0, "ok")
+
+            ctx = Context(llama_bench=binary, model=model, caps=probe_llama_bench(binary), backend=None, gpu=None,
+                          gpu_index=None, timeout=30, gate=gate)
+            out = root / "o"
+            m = ctx.measurer(out, root / "log")
+            kwargs = dict(space={"batch": [512, 1024, 2048], "ubatch": [256, 512], "kv": ["f16"]}, base=BenchPoint(),
+                          depth=8192, n_trials=4, mode="score:fast", objectives=("tg", "pp"), policy=PrunePolicy(),
+                          seed=0, population=None, refs={}, study_name="s")
+            with self.assertRaises(GpuBusyError):
+                run_study(ctx, m, out, **kwargs)
+            calls["fail_at"] = -1
+            summary = run_study(ctx, m, out, **kwargs)
+            counted = summary["trial_states"].get("COMPLETE", 0) + summary["trial_states"].get("PRUNED", 0)
+            self.assertEqual(counted, 4)  # the dead trial was re-run, not counted

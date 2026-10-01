@@ -54,9 +54,12 @@ def collect_candidates(run_root: Path, top_k: int) -> list[dict[str, Any]]:
         grid = read_json(grid_path, "grid.json")
         base = BenchPoint().to_dict()
         for item in grid.get("promising", []):
-            point = BenchPoint(**{**base, "kv": item["kv_type"], "ngl": item["ngl"], "batch": item["batch"],
-                                  "ubatch": item["ubatch"], "flash_attn": item["flash_attn"],
-                                  "n_cpu_moe": item.get("n_cpu_moe"), "depth": 0})
+            if item.get("point"):  # exact point incl. split_mode / nkvo / threads
+                point = BenchPoint.from_dict(item["point"]).replace(depth=0)
+            else:  # grid.json written before points were stored
+                point = BenchPoint(**{**base, "kv": item["kv_type"], "ngl": item["ngl"], "batch": item["batch"],
+                                      "ubatch": item["ubatch"], "flash_attn": item["flash_attn"],
+                                      "n_cpu_moe": item.get("n_cpu_moe"), "depth": 0})
             found.setdefault(point.config_key(), {"point": point, "source": f"grid@{item['context_depth']}",
                                                   "tg": item.get("tg_tps"), "pp": item.get("pp_tps"),
                                                   "vram": item.get("vram_peak_mb")})
@@ -185,6 +188,7 @@ def run_validation(ctx: Context, run_root: Path, capacity_path: Path, out_dir: P
                           "depths": per_depth, "soak": soak})
     write_rows_csv(out_dir / "validation.csv", ck.rows)
     result = {"stage": "validation", "reps": reps, "depths": list(depths), "top_k": top_k,
+              "prompt": base.prompt, "ngen": base.ngen,
               "criteria": criteria.__dict__, "cv_limit": cv_limit, "benchmark_fingerprint": ck.fingerprint,
               "runtime_commits": sorted({r["runtime_commit"] for r in ck.rows if r.get("runtime_commit")}),
               "skipped": skipped, "candidates": summaries, "elapsed_seconds": ck.elapsed()}
@@ -193,5 +197,7 @@ def run_validation(ctx: Context, run_root: Path, capacity_path: Path, out_dir: P
 
 
 def _config_of(row: dict[str, Any]) -> str:
+    if row.get("point_json"):
+        return BenchPoint.from_dict(json.loads(row["point_json"])).config_key()
     return BenchPoint(kv=row["kv_type"], ngl=row["ngl"], batch=row["batch"], ubatch=row["ubatch"],
                       flash_attn=row["flash_attn"], n_cpu_moe=row.get("n_cpu_moe")).config_key()

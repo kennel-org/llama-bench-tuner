@@ -126,6 +126,7 @@ PIPELINE_EXTRA_FIELDS = [
     "stage",                  # capacity | grid | optuna | validation
     "benchmark_kind",         # llama-bench | server
     "case_key",
+    "point_json",             # the exact BenchPoint (all axes incl. split_mode/nkvo/threads) as JSON
     "kv_type_k",
     "kv_type_v",
     "flash_attn",

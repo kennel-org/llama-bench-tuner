@@ -66,6 +66,17 @@ _RUNTIME_ABORT_MARKERS = (
 )
 _ABORT_RETURN_CODES = (134, -6, 139, -11)
 
+# With ``-v`` llama.cpp prints its whole load log; benign lines in it can contain words such as
+# "unsupported". Only the end of stderr (where a fatal error and its backtrace land) is searched.
+_STDERR_TAIL_LINES = 120
+
+# Statuses that mean "this configuration failed to run" (as opposed to unsupported/skipped).
+FAILURE_STATUSES = frozenset({"oom", "runtime_abort", "timeout", "failed"})
+
+
+def _tail(text: str, lines: int = _STDERR_TAIL_LINES) -> str:
+    return "\n".join(text.splitlines()[-lines:])
+
 
 def classify_bench_outcome(
     *,
@@ -87,7 +98,8 @@ def classify_bench_outcome(
     """
 
     ok = (decode_tps or 0.0) > 0.0
-    material = f"{stdout}\n{stderr}".lower()
+    # stdout is the CSV table (no diagnostics); diagnostics live in the tail of stderr.
+    material = f"{_tail(stdout, 20)}\n{_tail(stderr)}".lower()
 
     if skip_reason:
         return BenchOutcome(BenchStatus.SKIPPED, False, skip_reason)

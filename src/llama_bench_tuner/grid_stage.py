@@ -8,16 +8,17 @@ Optuna search space (``next_space``) and records per-axis effects.
 from __future__ import annotations
 
 import itertools
+import json
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
 from .measure import BenchPoint
-from .pareto import pareto_by_group
+from .pareto import pareto_by_group, usable_metrics
 from .stage_common import Checkpoint, Context, load_capacity, median_iqr, read_json, write_json, write_rows_csv
-from .status import BenchStatus
+from .status import FAILURE_STATUSES, BenchStatus
 
-_FAIL = {BenchStatus.OOM.value, BenchStatus.RUNTIME_ABORT.value, BenchStatus.TIMEOUT.value, BenchStatus.FAILED.value}
+_FAIL = FAILURE_STATUSES
 
 AXES = ("ngl", "batch", "ubatch", "flash_attn", "n_cpu_moe", "split_mode", "nkvo")
 
@@ -38,8 +39,15 @@ def load_space(path: Optional[Path]) -> dict[str, list[Any]]:
     return data
 
 
-def default_space(model_is_moe: bool = False) -> dict[str, list[Any]]:
-    return {"ngl": [99], "batch": [512, 1024, 2048, 4096], "ubatch": [256, 512, 1024], "flash_attn": [0, 1]}
+def default_space(base: BenchPoint) -> dict[str, list[Any]]:
+    """Coarse defaults for axes the user did not put in the space file.
+
+    ``ngl`` is never defaulted (the capacity sweep ran at ``base.ngl`` and the Grid must stay
+    comparable with it). FlashAttention-off is added to the comparison only when the run uses FA
+    (so the FA effect is visible); a run explicitly at ``--flash-attn 0`` stays at 0."""
+
+    return {"batch": [512, 1024, 2048, 4096], "ubatch": [256, 512, 1024],
+            "flash_attn": [1, 0] if base.flash_attn == 1 else [base.flash_attn]}
 
 
 def targets_from_capacity(capacity: dict[str, Any], depths: Optional[Sequence[int]],
@@ -71,6 +79,8 @@ def build_cases(space: dict[str, list[Any]], targets: list[tuple[str, int]], bas
     kvs = sorted({kv for kv, _ in targets})
     for cfg in configs:
         for kv in kvs:
+            if kv != "f16" and cfg["flash_attn"] == 0:
+                continue  # statically unsupported (quantized KV needs FA): not worth a process or a row
             for depth in sorted(d for k, d in targets if k == kv):
                 cases.append(base.replace(kv=kv, depth=depth, **cfg))
     if max_cases is not None and len(cases) > max_cases:
@@ -130,12 +140,14 @@ def promising(rows: list[dict[str, Any]], top_n: int = 3) -> list[dict[str, Any]
     """Pareto rows (pp↑ tg↑ vram↓, or pp↑ tg↑ when VRAM is unmeasured) plus the best few by tg and by pp, per depth."""
 
     done = [r for r in rows if r["capacity_ok"]]
-    minimize = ["vram_peak_mb"] if all(r["vram_peak_mb"] is not None for r in done) and done else []
-    fronts = pareto_by_group(done, "context_depth", maximize=["pp_tps", "tg_tps"], minimize=minimize)
+    minimize = usable_metrics(done, ["vram_peak_mb"])
+    maximize = usable_metrics(done, ["pp_tps", "tg_tps"]) or ["tg_tps"]
+    fronts = pareto_by_group(done, "context_depth", maximize=maximize, minimize=minimize)
     chosen: dict[str, dict[str, Any]] = {}
     for depth, front in fronts.items():
         pool = [r for r in done if r["context_depth"] == depth]
-        extra = sorted(pool, key=lambda r: -r["tg_tps"])[:top_n] + sorted(pool, key=lambda r: -r["pp_tps"])[:top_n]
+        extra = (sorted((r for r in pool if r["tg_tps"] is not None), key=lambda r: -r["tg_tps"])[:top_n]
+                 + sorted((r for r in pool if r["pp_tps"] is not None), key=lambda r: -r["pp_tps"])[:top_n])
         for r in list(front) + extra:
             chosen[r["case_key"]] = r
     return list(chosen.values())
@@ -162,14 +174,15 @@ def run_grid(ctx: Context, capacity_path: Path, out_dir: Path, log_root: Path, *
     if not targets:
         raise SystemExit("[FATAL] capacity sweep left no surviving (kv, depth) to grid over. "
                          "Use --include-capacity-only to allow merely-completed points.")
-    space = {**default_space(), **space}
+    user_space = dict(space)
+    space = {**default_space(base), **space}
     cases = build_cases(space, targets, base, max_cases)
     out_dir.mkdir(parents=True, exist_ok=True)
     definition = {"stage": "grid", **ctx.identity(), "capacity_fingerprint": capacity.get("benchmark_fingerprint"),
                   "cases": [c.key() for c in cases]}
     ck = Checkpoint(out_dir / "checkpoint.json", definition, resume, "grid")
     measurer = ctx.measurer(out_dir, log_root)
-    failed_cfg: set[tuple[str, str]] = {(r["kv_type"], BenchPoint(**{**_point_from_row(r), "depth": 0}).config_key())
+    failed_cfg: set[tuple[str, str]] = {(r["kv_type"], _point_from_row(r).config_key())
                                         for r in ck.rows if r["status"] in _FAIL}
     for point in cases:
         key = point.key()
@@ -195,16 +208,20 @@ def run_grid(ctx: Context, capacity_path: Path, out_dir: Path, log_root: Path, *
         "targets": [{"kv": kv, "depth": d} for kv, d in targets], "space": space,
         "n_cases": len(cases), "elapsed_seconds": ck.elapsed(),
         "axis_effects": axis_effects(rows), "failure_boundaries": failure_boundaries(rows),
-        "promising": [{k: r[k] for k in ("case_key", "context_depth", "kv_type", "ngl", "batch", "ubatch",
-                                         "flash_attn", "n_cpu_moe", "pp_tps", "tg_tps", "vram_peak_mb")} for r in best],
+        "promising": [{**{k: r[k] for k in ("case_key", "context_depth", "kv_type", "ngl", "batch", "ubatch",
+                                           "flash_attn", "n_cpu_moe", "pp_tps", "tg_tps", "vram_peak_mb")},
+                       "point": json.loads(r["point_json"]) if r.get("point_json") else None} for r in best],
+        "space_sources": {a: ("user" if a in user_space else "default") for a in space},
         "next_space": next_space(best),
     })
     return rows
 
 
-def _point_from_row(row: dict[str, Any]) -> dict[str, Any]:
-    """Rebuild BenchPoint kwargs from a stored row (used to restore failure state after --resume)."""
+def _point_from_row(row: dict[str, Any]) -> BenchPoint:
+    """Rebuild the exact point of a stored row (used to restore failure state after --resume)."""
 
-    return {"kv": row["kv_type"], "depth": row["context_depth"], "ngl": row["ngl"], "batch": row["batch"],
-            "ubatch": row["ubatch"], "flash_attn": row["flash_attn"], "n_cpu_moe": row.get("n_cpu_moe"),
-            "prompt": row["prompt_tokens"], "ngen": row["generated_tokens"]}
+    if row.get("point_json"):
+        return BenchPoint.from_dict(json.loads(row["point_json"]))
+    return BenchPoint(kv=row["kv_type"], depth=row["context_depth"], ngl=row["ngl"], batch=row["batch"],
+                      ubatch=row["ubatch"], flash_attn=row["flash_attn"], n_cpu_moe=row.get("n_cpu_moe"),
+                      prompt=row["prompt_tokens"], ngen=row["generated_tokens"])

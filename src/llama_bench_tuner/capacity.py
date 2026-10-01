@@ -27,19 +27,17 @@ from .capabilities import LlamaBenchCapabilities, probe_llama_bench
 from .executor import ExecResult, run_monitored
 from .gpu_gate import wait_for_gpu
 from .measure import BenchPoint, Measurer, point_command
-from .pareto import pareto_by_group
+from .pareto import pareto_by_group, usable_metrics
 from .schema import PIPELINE_RESULT_FIELDS, PIPELINE_SCHEMA_VERSION
-from .status import BenchStatus
+from .status import FAILURE_STATUSES, BenchStatus
 from .telemetry import GpuBackend, GpuInfo, detect_backend
-from .tune import _atomic_write_text, _file_identity, _load_json, benchmark_fingerprint
+from .stage_common import Checkpoint
+from .tune import _atomic_write_text, _file_identity, benchmark_fingerprint
 
 DEFAULT_DEPTHS = (0, 4096, 8192, 16384, 32768, 65536, 131072)
 EXTENDED_DEPTHS = (262144, 393216, 524288)
 DEFAULT_KV = ("f16", "q8_0", "q4_0")
-_FAILURE_STATUSES = {
-    BenchStatus.OOM.value, BenchStatus.RUNTIME_ABORT.value, BenchStatus.TIMEOUT.value,
-    BenchStatus.FAILED.value,
-}
+_FAILURE_STATUSES = FAILURE_STATUSES
 
 
 # ----------------------------------------------------------------------------- config
@@ -199,7 +197,8 @@ def pareto_tables(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]
     """Per-depth non-dominated KV configs over pp↑, tg↑, peak VRAM↓ (completed runs only)."""
 
     done = [r for r in rows if r["capacity_ok"]]
-    fronts = pareto_by_group(done, "context_depth", maximize=["pp_tps", "tg_tps"], minimize=["vram_peak_mb"])
+    minimize = usable_metrics(done, ["vram_peak_mb"])  # no telemetry -> VRAM is not an objective
+    fronts = pareto_by_group(done, "context_depth", maximize=["pp_tps", "tg_tps"], minimize=minimize)
     return {
         str(depth): [{k: r[k] for k in ("kv_type", "pp_tps", "tg_tps", "vram_peak_mb", "ram_peak_mb", "status")}
                      for r in front]
@@ -207,8 +206,10 @@ def pareto_tables(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]
     }
 
 
-def write_outputs(run_root: Path, rows: list[dict[str, Any]], cfg: CapacityConfig, meta: dict[str, Any]) -> None:
-    csv_path = run_root / "capacity.csv"
+def write_outputs(run_root: Path, rows: list[dict[str, Any]], cfg: CapacityConfig, meta: dict[str, Any],
+                  partial: bool = False) -> None:
+    suffix = "_partial" if partial else ""
+    csv_path = run_root / f"capacity{suffix}.csv"
     with csv_path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=PIPELINE_RESULT_FIELDS)
         writer.writeheader()
@@ -225,7 +226,8 @@ def write_outputs(run_root: Path, rows: list[dict[str, Any]], cfg: CapacityConfi
         "status_counts": dict(Counter(r["status"] for r in rows)),
         "pareto_by_depth": pareto_tables(rows),
     }
-    _atomic_write_text(run_root / "capacity.json", json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
+    summary["complete"] = not partial
+    _atomic_write_text(run_root / f"capacity{suffix}.json", json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
 
 
 # ------------------------------------------------------------------------------- driver
@@ -267,33 +269,27 @@ def resolve_gpu(cfg: CapacityConfig, backend: Optional[GpuBackend]) -> tuple[Opt
 
 def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend: Optional[GpuBackend],
                  resume: bool = False, runner: Callable[..., ExecResult] = run_monitored,
-                 sleep: Callable[[float], None] | None = None) -> tuple[list[dict[str, Any]], int]:
-    """Execute the sweep. Returns (rows, exit_code); exit 3 = stopped because the GPU was busy."""
+                 sleep: Callable[[float], None] | None = None,
+                 caps: Optional[LlamaBenchCapabilities] = None) -> tuple[list[dict[str, Any]], int]:
+    """Execute the sweep. Returns (rows, exit_code); exit 3 = stopped because the GPU was busy.
+
+    ``capacity.json`` is written only for a *finished* sweep; an interrupted one writes
+    ``capacity_partial.json`` so a pipeline ``--resume`` never mistakes it for a complete stage."""
 
     raw_dir = run_root / "raw"
     for path in (run_root, raw_dir, log_root):
         path.mkdir(parents=True, exist_ok=True)
-    caps = probe_llama_bench(cfg.llama_bench)
+    caps = caps or probe_llama_bench(cfg.llama_bench)
     definition, fingerprint = _fingerprint(cfg)
-    checkpoint = run_root / "checkpoint.json"
     metadata = run_root / "run_metadata.json"
-    rows: list[dict[str, Any]] = []
-    done: list[str] = []
-    base_elapsed = 0.0
-    if resume and checkpoint.exists():
-        state = _load_json(checkpoint, "checkpoint")
-        if state.get("benchmark_fingerprint") != fingerprint:
-            raise SystemExit("[FATAL] Cannot resume: capacity fingerprint differs; use a new --run-dir.")
-        rows, done = state.get("results", []), state.get("completed_items", [])
-        base_elapsed = float(state.get("elapsed_seconds", 0.0))
-        print(f"RESUME {len(done)} cases from {checkpoint}")
+    ck = Checkpoint(run_root / "checkpoint.json", definition, resume, "capacity")
+    rows, done = ck.rows, ck.done
 
     gpu, gpu_index, gpu_note = resolve_gpu(cfg, backend)
     if gpu_note:
         print(f"[WARN] {gpu_note}")
-    started = datetime.now(timezone.utc)
     meta = {
-        "started": started.isoformat(timespec="seconds"), "benchmark_fingerprint": fingerprint,
+        "started": ck.started.isoformat(timespec="seconds"), "benchmark_fingerprint": fingerprint,
         "benchmark_definition": definition, "capabilities": caps.to_dict(),
         "gpu": asdict(gpu) if gpu else None, "gpu_index": gpu_index, "gpu_note": gpu_note or None,
         "runtime": {"llama_bench_help_sha256": caps.help_sha256},
@@ -311,8 +307,9 @@ def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend
             baselines[r["kv_type"]] = {"tg": r["tg_tps"], "pp": r["pp_tps"]}
     failed_kv: set[str] = {r["kv_type"] for r in rows if r["status"] in _FAILURE_STATUSES} if cfg.stop_after_fail else set()
     exit_code = 0
+    busy_row: Optional[dict[str, Any]] = None
 
-    for index, (kv, depth) in enumerate(cases, 1):
+    for kv, depth in cases:
         key = case_key(kv, depth)
         if key in done:
             continue
@@ -326,11 +323,11 @@ def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend
                                 wait=cfg.wait_for_gpu, timeout_s=cfg.gpu_wait_timeout, poll_s=cfg.gpu_poll_s,
                                 **({"sleep": sleep} if sleep else {}))
             if not gate.ok:
-                row = measurer.base_row("capacity", _point(cfg, kv, depth))
-                row.update(status=BenchStatus.GPU_BUSY.value, success=False, capacity_ok=False,
-                           practical_candidate=False, error=gate.reason, telemetry_status="not_run",
-                           skip_reason="; ".join(gate.active_processes) or None)
-                rows.append(row)  # recorded but NOT checkpointed as done: a resume retries it
+                busy_row = measurer.base_row("capacity", _point(cfg, kv, depth))
+                busy_row.update(status=BenchStatus.GPU_BUSY.value, success=False, capacity_ok=False,
+                                practical_candidate=False, error=gate.reason, telemetry_status="not_run",
+                                skip_reason="; ".join(gate.active_processes) or None)
+                # reported but NOT checkpointed as done: a resume retries this case
                 print(f"GPU_BUSY {key}: {gate.reason}")
                 exit_code = 3
                 break
@@ -338,24 +335,13 @@ def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend
             row = run_case(cfg, kv, depth, measurer=measurer, baselines=baselines)
             if cfg.stop_after_fail and row["status"] in _FAILURE_STATUSES:
                 failed_kv.add(kv)
-        rows.append(row)
-        done.append(key)
-        elapsed = base_elapsed + (datetime.now(timezone.utc) - started).total_seconds()
-        eta = elapsed / len(done) * (len(cases) - len(done)) if done else 0.0
-        tg = row["tg_tps"]
-        print(f"[{len(done)}/{len(cases)}] elapsed={elapsed:.0f}s eta={eta:.0f}s {key} status={row['status']} "
-              f"pp={row['pp_tps']} tg={tg} vram_peak={row['vram_peak_mb']}MiB", flush=True)
-        _atomic_write_text(checkpoint, json.dumps({
-            "pipeline_schema_version": PIPELINE_SCHEMA_VERSION, "benchmark_fingerprint": fingerprint,
-            "completed_index": len(done), "completed_items": done,
-            "results": [r for r in rows if r["status"] != BenchStatus.GPU_BUSY.value],
-            "elapsed_seconds": elapsed, "wall_clock": str(timedelta(seconds=int(elapsed))),
-        }, ensure_ascii=False, indent=2) + "\n")
+        ck.add(key, row, len(cases), "capacity")
 
-    elapsed = base_elapsed + (datetime.now(timezone.utc) - started).total_seconds()
+    elapsed = ck.elapsed()
     meta.update(elapsed_seconds=elapsed, wall_clock=str(timedelta(seconds=int(elapsed))), exit_code=exit_code)
-    write_outputs(run_root, rows, cfg, meta)
-    return rows, exit_code
+    out_rows = rows + ([busy_row] if busy_row else [])
+    write_outputs(run_root, out_rows, cfg, meta, partial=exit_code != 0)
+    return out_rows, exit_code
 
 
 # --------------------------------------------------------------------------------- CLI
@@ -437,8 +423,9 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     log_root = args.tmp_dir / "capacity" / run_root.name
     backend = detect_backend()
     rows, code = run_capacity(cfg, run_root, log_root, backend=backend, resume=args.resume)
-    print(f"capacity.json: {run_root / 'capacity.json'}")
-    print(f"capacity.csv:  {run_root / 'capacity.csv'}")
+    suffix = "_partial" if code else ""
+    print(f"capacity{suffix}.json: {run_root / f'capacity{suffix}.json'}")
+    print(f"capacity{suffix}.csv:  {run_root / f'capacity{suffix}.csv'}")
     raise SystemExit(code)
 
 

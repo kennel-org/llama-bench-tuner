@@ -59,3 +59,14 @@ def pareto_by_group(rows: Iterable[Mapping[str, Any]], group_key: str, *, maximi
         groups.setdefault(row.get(group_key), []).append(row)
     return {key: pareto_front(group, maximize=maximize, minimize=minimize)
             for key, group in groups.items()}
+
+
+def usable_metrics(rows: Iterable[Mapping[str, Any]], keys: Sequence[str]) -> list[str]:
+    """Keep only the metrics measured in *every* row.
+
+    ``dominates`` never lets a row with a missing metric dominate, so a metric that is absent from
+    all rows (no telemetry, no TTFT estimate) would make every row look non-dominated. Dropping such
+    metrics before filtering keeps the front meaningful; callers record which metrics were used."""
+
+    items = list(rows)
+    return [k for k in keys if items and all(_value(r, k) is not None for r in items)]

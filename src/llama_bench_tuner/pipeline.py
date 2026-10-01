@@ -110,7 +110,7 @@ def stage_capacity(args, ctx: Context, root: Path) -> None:
         raise SystemExit(f"[FATAL] {out / 'checkpoint.json'} exists (interrupted run); use --resume or a new --name.")
     cfg = config_from_args(args)
     _, code = run_capacity(cfg, out, args.tmp_dir / "pipeline" / root.name / "capacity",
-                           backend=ctx.backend, resume=args.resume)
+                           backend=ctx.backend, resume=args.resume, caps=ctx.caps)
     if code:
         raise SystemExit(code)
 

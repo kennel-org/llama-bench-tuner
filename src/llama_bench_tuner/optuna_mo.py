@@ -182,7 +182,9 @@ def run_study(ctx: Context, measurer: Measurer, out_dir: Path, *, space: dict[st
             return [float(v) for v in values]
         return use_case_score(mode.split(":", 1)[1], final, refs)
 
-    remaining = max(0, n_trials - len([t for t in study.trials if t.state.is_finished()]))
+    # Only COMPLETE and PRUNED trials count: a trial that died (GPU busy, Ctrl-C) must be re-run on resume.
+    counted = (optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.PRUNED)
+    remaining = max(0, n_trials - len([t for t in study.trials if t.state in counted]))
     if remaining:
         study.optimize(objective, n_trials=remaining)
 

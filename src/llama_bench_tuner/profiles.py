@@ -12,7 +12,7 @@ from typing import Any, Optional
 
 from .measure import BenchPoint, point_command
 from .optuna_mo import SCORE_WEIGHTS, use_case_score
-from .pareto import pareto_by_group
+from .pareto import pareto_by_group, usable_metrics
 from .schema import PIPELINE_SCHEMA_VERSION, environment_metadata
 from .stage_common import Context, model_quant_from_name, read_json, write_json, write_rows_csv
 
@@ -82,8 +82,8 @@ def select_profiles(validation: dict[str, Any], *, fast_depth: int, balanced_dep
     def best(profile: str, pool: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
         if not pool:
             return None
-        refs = {"tg": max(_entry_row(e, vram_total)["tg_tps"] for e in pool),
-                "pp": max(_entry_row(e, vram_total)["pp_tps"] for e in pool)}
+        refs = {"tg": max(_entry_row(e, vram_total)["tg_tps"] or 0 for e in pool) or 1.0,
+                "pp": max(_entry_row(e, vram_total)["pp_tps"] or 0 for e in pool) or 1.0}
         ttfts = [_entry_row(e, vram_total)["ttft_est_s"] for e in pool if _entry_row(e, vram_total)["ttft_est_s"]]
         if ttfts:
             refs["ttft"] = max(ttfts)
@@ -117,7 +117,9 @@ def build_profile(ctx: Context, name: str, pick: dict[str, Any], validation: dic
     cfg = e["cand"]["config"]
     point = BenchPoint(**cfg).replace(depth=e["depth"])
     s = e["s"]
-    server_cmd, server_found = server_command(ctx.llama_bench, ctx.model, point, e["depth"])
+    prompt, ngen = validation.get("prompt", point.prompt), validation.get("ngen", point.ngen)
+    n_ctx = e["depth"] + prompt + ngen  # exactly what was validated (KV depth + prompt + generated tokens)
+    server_cmd, server_found = server_command(ctx.llama_bench, ctx.model, point, n_ctx)
     quant = model_quant_from_name(ctx.model)
     st = ctx.model.stat() if ctx.model.exists() else None
     return {
@@ -131,8 +133,9 @@ def build_profile(ctx: Context, name: str, pick: dict[str, Any], validation: dic
         "model": {"path": str(ctx.model), "size_bytes": st.st_size if st else None,
                   "mtime_ns": st.st_mtime_ns if st else None, "quant": quant,
                   "quant_source": "filename" if quant else None},
-        "context": e["depth"], "context_note": "validated with `context` tokens already in the KV cache plus a 512-token "
-                                               "prompt and 64 generated tokens (n_ctx = context + 576)",
+        "context": e["depth"], "server_context": n_ctx,
+        "context_note": f"validated with `context` tokens already in the KV cache plus a {prompt}-token prompt and "
+                        f"{ngen} generated tokens, i.e. n_ctx = {n_ctx}; the llama-server command uses -c {n_ctx}",
         "kv_type_k": point.kv, "kv_type_v": point.kv, "batch": point.batch, "ubatch": point.ubatch,
         "flash_attn": point.flash_attn, "ngl": point.ngl, "n_cpu_moe": point.n_cpu_moe,
         "split_mode": point.split_mode, "mtp_speculation": None,
@@ -143,7 +146,8 @@ def build_profile(ctx: Context, name: str, pick: dict[str, Any], validation: dic
                      "sm_clock_min_mhz": s["sm_clock_min_mhz"], "throttle_reasons": s["throttle_reasons"]},
         "soak": e["cand"].get("soak"),
         "commands": {"llama_server": shlex.join(server_cmd), "llama_server_binary_found": server_found,
-                     "llama_bench_reproduce": shlex.join(point_command(ctx.llama_bench, ctx.model, point.replace(reps=3)))},
+                     "llama_bench_reproduce": shlex.join(point_command(
+                         ctx.llama_bench, ctx.model, point.replace(prompt=prompt, ngen=ngen, reps=3)))},
         "notes": ["llama-server flags are taken from the validated llama-bench configuration; the server binary's "
                   "--help is probed only for the flash-attention syntax.",
                   "MTP / speculative decoding is not part of this profile (llama-bench has no such option)."],
@@ -190,18 +194,24 @@ def write_pareto(out_dir: Path, run_root: Path, validation: Optional[dict[str, A
                                  "ttft_ms": (s["ttft_est_s"] * 1000 if s["ttft_est_s"] else None),
                                  "vram_peak_mb": s["vram_peak_mb"]})
     summary: dict[str, Any] = {}
-    have_vram = any(r["vram_peak_mb"] not in (None, "") for r in rows)
-    minimize = ["ttft_ms"] + (["vram_peak_mb"] if have_vram else [])
-    for depth, front in sorted(pareto_by_group(rows, "depth", maximize=["pp_tps", "tg_tps"], minimize=minimize).items()):
+    by_depth: dict[int, list[dict[str, Any]]] = {}
+    for r in rows:
+        by_depth.setdefault(r["depth"], []).append(r)
+    for depth, group in sorted(by_depth.items()):
         if depth == 0:
             continue
-        write_json(out_dir / f"pareto_d{depth}.json", {"depth": depth, "maximize": ["pp_tps", "tg_tps"],
-                                                       "minimize": minimize, "front": front})
+        # Metrics missing from any row of this depth (no telemetry, no TTFT estimate for grid rows) are
+        # dropped from the objectives; otherwise nothing could dominate and every row would be "optimal".
+        maximize = usable_metrics(group, ["pp_tps", "tg_tps"]) or ["tg_tps"]
+        minimize = usable_metrics(group, ["ttft_ms", "vram_peak_mb"])
+        front = pareto_by_group(group, "depth", maximize=maximize, minimize=minimize)[depth]
+        write_json(out_dir / f"pareto_d{depth}.json", {"depth": depth, "maximize": maximize, "minimize": minimize,
+                                                       "n_rows": len(group), "front": front})
         with (out_dir / f"pareto_d{depth}.csv").open("w", newline="") as handle:
             writer = _csv.DictWriter(handle, fieldnames=list(front[0]) if front else ["depth"])
             writer.writeheader()
             writer.writerows(front)
-        summary[str(depth)] = len(front)
+        summary[str(depth)] = {"front": len(front), "rows": len(group), "objectives": maximize + minimize}
     return summary
 
 

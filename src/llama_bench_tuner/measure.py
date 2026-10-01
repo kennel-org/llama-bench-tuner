@@ -6,6 +6,7 @@ construction, failure classification, telemetry and result naming live in one pl
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -69,6 +70,11 @@ class BenchPoint:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "BenchPoint":
+        known = {f for f in cls.__dataclass_fields__}  # type: ignore[attr-defined]
+        return cls(**{k: v for k, v in data.items() if k in known})
+
 
 def point_command(llama_bench: Path, model: Path, point: BenchPoint) -> list[str]:
     spec = LlamaBenchCommand(
@@ -124,6 +130,7 @@ class Measurer:
         env = environment_metadata()
         return pipeline_row(
             stage=stage, benchmark_kind="llama-bench", case_key=point.key(),
+            point_json=json.dumps(point.to_dict(), sort_keys=True),
             host=env["host"], gpu=env["gpu"] or (self.gpu.name if self.gpu else ""),
             gpu_connection=env["gpu_connection"], platform=env["platform"], python=env["python"],
             backend="llama.cpp/llama-bench", llama_bench=str(self.llama_bench), model=str(self.model),
