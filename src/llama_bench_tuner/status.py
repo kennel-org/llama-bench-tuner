@@ -13,6 +13,12 @@ class BenchStatus(str, Enum):
     UNSUPPORTED = "unsupported"
     TIMEOUT = "timeout"
     SKIPPED = "skipped"
+    # Added for the capacity/pipeline workflow (append-only; legacy runners never
+    # need to produce these, and `ok` semantics are unchanged).
+    RUNTIME_ABORT = "runtime_abort"
+    SLOWDOWN = "slowdown"
+    GPU_BUSY = "gpu_busy"
+    SKIPPED_AFTER_FAIL = "skipped_after_fail"
 
 
 @dataclass(frozen=True)
@@ -36,6 +42,23 @@ _UNSUPPORTED_MARKERS = (
     "invalid parameter for argument",
     "unrecognized option",
 )
+# Backend runtime faults that are *not* memory exhaustion: HIP/ROCm hardware
+# exceptions, generic ggml backend aborts, driver faults. They are reported
+# separately so a ROCm abort is never mistaken for an OOM boundary.
+_RUNTIME_ABORT_MARKERS = (
+    "hw exception",
+    "rocm error",
+    "hip error",
+    "hiperror",
+    "cuda error",
+    "ggml_abort",
+    "ggml_cuda_error",
+    "core dumped",
+    "segmentation fault",
+    "illegal memory access",
+    "device-side assert",
+)
+_ABORT_RETURN_CODES = (134, -6, 139, -11)
 
 
 def classify_bench_outcome(
@@ -70,6 +93,11 @@ def classify_bench_outcome(
             return BenchOutcome(BenchStatus.OOM, ok, "llama-bench reported out of memory")
         if any(marker in material for marker in _UNSUPPORTED_MARKERS):
             return BenchOutcome(BenchStatus.UNSUPPORTED, ok, "llama-bench reported unsupported configuration")
+        if returncode in _ABORT_RETURN_CODES or any(m in material for m in _RUNTIME_ABORT_MARKERS):
+            return BenchOutcome(
+                BenchStatus.RUNTIME_ABORT, ok,
+                f"llama-bench aborted at runtime (exit code {returncode}); not classified as OOM",
+            )
         return BenchOutcome(BenchStatus.FAILED, ok, f"llama-bench exited with code {returncode}")
 
     if ok:

@@ -21,19 +21,26 @@ class LlamaBenchCommand:
 
     llama_bench: Path
     model: Path
-    threads: int
+    threads: int | None
     ngl: int
     batch: int
     ubatch: int
     prompt: int
     ngen: int
-    mmap: int
+    mmap: int | None
     flash_attn: int | None
     nkvo: int | None = None
     split_mode: str | None = None
     output_format: str = "csv"
     verbose: bool = False
     option_order: tuple[str, ...] = ("flash_attn", "nkvo", "split_mode")
+    depth: int | None = None
+    cache_type_k: str | None = None
+    cache_type_v: str | None = None
+    repetitions: int | None = None
+    n_cpu_moe: int | None = None
+    """Pipeline-only options. ``None`` emits nothing, so a spec that does not set
+    them produces exactly the historical command line."""
     legacy_mmap_flag: bool = True
     """Whether the target binary still accepts ``-mmp <0|1>``.
 
@@ -47,17 +54,19 @@ class LlamaBenchCommand:
 def build_llama_bench_command(spec: LlamaBenchCommand) -> list[str]:
     """Build the legacy llama-bench invocation in its established argument order."""
 
-    command = [
-        str(spec.llama_bench),
-        "-m", str(spec.model),
-        "-t", str(spec.threads),
+    command = [str(spec.llama_bench), "-m", str(spec.model)]
+    if spec.threads is not None:
+        command.extend(["-t", str(spec.threads)])
+    command += [
         "-ngl", str(spec.ngl),
         "-b", str(spec.batch),
         "-ub", str(spec.ubatch),
         "-p", str(spec.prompt),
         "-n", str(spec.ngen),
     ]
-    if spec.legacy_mmap_flag:
+    if spec.mmap is None:
+        pass  # pipeline runs keep llama-bench's default load mode
+    elif spec.legacy_mmap_flag:
         command.extend(["-mmp", str(spec.mmap)])
     else:
         command.extend(["-lm", "mmap" if spec.mmap else "none"])
@@ -75,6 +84,17 @@ def build_llama_bench_command(spec: LlamaBenchCommand) -> list[str]:
         option = optional[name]
         if option:
             command.extend(option)
+    # Pipeline-only options come last so legacy argument order is untouched.
+    if spec.depth is not None:
+        command.extend(["-d", str(spec.depth)])
+    if spec.cache_type_k is not None:
+        command.extend(["-ctk", spec.cache_type_k])
+    if spec.cache_type_v is not None:
+        command.extend(["-ctv", spec.cache_type_v])
+    if spec.n_cpu_moe is not None:
+        command.extend(["-ncmoe", str(spec.n_cpu_moe)])
+    if spec.repetitions is not None:
+        command.extend(["-r", str(spec.repetitions)])
     return command
 
 
