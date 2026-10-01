@@ -37,6 +37,14 @@ Model weights, secrets, and large raw logs remain outside the Git-tracked core r
 - Existing Grid checkpoint/resume and metadata experiments are retained; no legacy output columns or visualization inputs are replaced.
 - pp/tg/depth, KV, MTP/speculation, MoE offload, and GPU telemetry are not implemented yet.
 
+## Implementation status (2026-10-01 addendum)
+
+The capacity -> grid -> optuna -> validation -> profile workflow (issue #1) is implemented on top of the Phase 1 foundation:
+`measure.py` (one-point measurement), `capacity.py`, `grid_stage.py`, `optuna_mo.py`, `validation.py`, `profiles.py`,
+`pipeline.py`, `telemetry.py`, `gpu_gate.py`, `executor.py`, `pareto.py`, `stage_common.py`. Not yet implemented: server adapter
+(measured TTFT, MTP/speculation acceptance), MoE (`n_cpu_moe`) tuning beyond declaring the axis, clock/power time series and soak
+analysis beyond a single long decode, GPU wait queue across several jobs. See README section 4.
+
 ## Phased implementation
 
 ### Phase 1: Compatibility and capability foundation

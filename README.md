@@ -213,6 +213,51 @@ Both commands emit ranking CSVs and PNG plots (decode vs. `ngl`, trial progressi
 
 ---
 
+### 4. Context-capacity pipeline (`llama-tune-capacity`, `llama-tune-pipeline`)
+
+The legacy `llama-tune` / `llama-tune-optuna` search `ngl x batch x flash-attn` at one prompt length. The pipeline answers a
+different question: **how long a context stays practical on this host/model/runtime**, then tunes inside that boundary.
+
+```
+capacity  ->  grid  ->  optuna  ->  validate  ->  profile (FAST / BALANCED / LONG-CONTEXT) + Pareto tables
+```
+
+| stage | what it does | output |
+|---|---|---|
+| `capacity` | one `llama-bench` process per (KV type, depth); classifies `success / oom / runtime_abort / timeout / unsupported / slowdown / skipped_after_fail / gpu_busy`; separates the **capacity boundary** (completes) from the **practical-candidate boundary** (tg/pp ratio vs depth 0, minimum tg, VRAM headroom, wall time) | `capacity.json`, `capacity.csv` |
+| `grid` | coarse Grid (batch, ubatch, flash-attn, ngl, n_cpu_moe, ...) only over what capacity says can run; reports per-axis effects, OOM/VRAM cliffs and a narrowed `next_space` | `grid.json`, `grid.csv` |
+| `optuna` | one study per target depth. Default: multi-objective NSGA-II over tg↑ pp↑ TTFT↓ VRAM↓ wall↓. `--mode score:fast\|balanced\|long` gives a single-objective use-case score with real `trial.report` pruning | `optuna/d<N>/optuna.json`, `optuna_rows.csv`, `study.db` |
+| `validate` | top-K candidates re-measured `--validate-reps` times as separate processes at 8K/32K/64K/128K; median / IQR / CV; a depth is `practical` only if every repeat completed and was stable | `validation.json`, `validation.csv` |
+| `profile` | picks FAST / BALANCED / LONG among *practical validated* entries; writes the exact `llama-server` command, expected pp/tg/VRAM/RAM, commit and model identity; plus per-depth Pareto tables and a failure summary | `profiles/*.json`, `pareto/`, `failure_summary.json` |
+
+```bash
+uv run llama-tune-pipeline all \
+  --llama-bench /path/to/llama-bench --model /path/to/model.gguf --name my-run \
+  --gpu-index 0 --min-free-vram-gib 17 --wait-for-gpu --gpu-wait-timeout 3600 \
+  --depths 0,4k,8k,16k,32k,64k,128k --kv f16,q8_0,q4_0 \
+  --grid-depths 8k,32k --optuna-depths 32k,128k --trials 14 \
+  --validate-depths 8k,32k,64k,128k --validate-reps 3 --top-k 4
+# stages can also be run alone: llama-tune-pipeline capacity|grid|optuna|validate|profile ...
+# interrupted? rerun the same command with --resume (finished stages are skipped, others continue from their checkpoint)
+```
+
+`llama-tune-capacity` runs only the first stage with its own `--run-dir`/`--resume`/`--dry-run`.
+Outputs go to `<out-dir>/pipeline/<name>/{capacity,grid,optuna,validation,profiles,pareto}`.
+
+Design rules worth knowing:
+
+* **Nothing is guessed.** VRAM/RAM/clock/power values are `null` when the host offers no sampler (NVIDIA incl. WSL and AMD sysfs
+  are supported). Options absent from `llama-bench --help` are recorded as `unsupported`, not executed. TTFT is an *estimate*
+  from pp (`ttft_kind=estimated_from_pp`); `llama-bench` does not report it.
+* **Multi-GPU hosts must be explicit**: pass `--gpu-index` (or `--min-free-vram-gib` to pick one) so single-GPU results are
+  never mixed with dual-GPU ones.
+* **GPU busy handling never touches other processes**: `--min-free-vram-gib`, `--wait-for-gpu`, `--gpu-wait-timeout`;
+  if the GPU never frees up the stage stops with exit code 3 and can be resumed.
+* **HIP/ROCm hardware exceptions are `runtime_abort`, not OOM.**
+* Optuna cannot use `trial.report()` / `should_prune()` in multi-objective studies, so the multi-objective mode prunes with a
+  cheap depth-0 stage (`PrunePolicy`); cheap metrics are kept separate from final metrics.
+* The legacy CLIs and their CSV columns are unchanged; pipeline results use a separate schema (`PIPELINE_RESULT_FIELDS`).
+
 ## Tips
 
 - Use `--ub-ratio` to derive micro-batch (`ub`) automatically from batch size (`batch / ratio`).
