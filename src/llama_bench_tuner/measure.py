@@ -17,9 +17,17 @@ from .command_builder import LlamaBenchCommand, build_llama_bench_command
 from .executor import ExecResult, gpu_env, run_monitored
 from .parsing import extract_metrics_by_depth, parse_bench_csv
 from .schema import environment_metadata, pipeline_row
-from .status import BenchStatus, classify_bench_outcome
+from .status import HARDWARE_FAULT_PREFIX, BenchStatus, classify_bench_outcome
 from .gpu_gate import GateResult
 from .telemetry import GpuBackend, GpuInfo
+
+
+class GpuFaultError(RuntimeError):
+    """The GPU reported a hardware fault; benchmarking on it is meaningless until it is reset."""
+
+    def __init__(self, message: str, row: dict):
+        super().__init__(message)
+        self.row = row
 
 
 class GpuBusyError(RuntimeError):
@@ -195,8 +203,9 @@ class Measurer:
                 returncode=result.returncode, decode_tps=parsed.tg_tps if parsed else None, stdout=result.stdout,
                 stderr=result.stderr, timed_out=result.timed_out)
             history.append(attempt_outcome.status.value)
-            if attempt_outcome.status is not BenchStatus.RUNTIME_ABORT or attempt > self.retry_aborts:
-                break
+            if (attempt_outcome.status is not BenchStatus.RUNTIME_ABORT or attempt > self.retry_aborts
+                    or attempt_outcome.error.startswith(HARDWARE_FAULT_PREFIX)):
+                break  # hardware faults are never retried
             # keep the aborted attempt's evidence before it is overwritten by the retry
             (self.log_dir / f"{name}.attempt{attempt}.stderr.txt").write_text(result.stderr)
             print(f"RETRY {point.key()}: runtime_abort on attempt {attempt} ({attempt_outcome.error})", flush=True)
@@ -226,6 +235,8 @@ class Measurer:
             csv=csv_path.relative_to(self.raw_dir.parent).as_posix(),
             stderr=err_path.relative_to(self.log_dir.parent).as_posix() if err_path.exists() else "",
         )
+        if row["error"].startswith(HARDWARE_FAULT_PREFIX):
+            raise GpuFaultError(row["error"], row)
         return row
 
 

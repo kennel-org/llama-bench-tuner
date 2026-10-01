@@ -390,6 +390,8 @@ class RetryTests(unittest.TestCase):
             if kind == "ok":
                 out = "n_prompt,n_gen,n_depth,avg_ts\n512,0,0,900\n0,64,0,20\n"
                 return ExecResult(0, out, "", False, 1.0, "s", "e", Peaks())
+            if kind == "ecc":
+                return ExecResult(1, "", "cudaMalloc failed: uncorrectable ECC error encountered", False, 1.0, "s", "e", Peaks())
             if kind == "abort":
                 return ExecResult(-6, "", "CUDA error: unknown error\nggml_abort", False, 1.0, "s", "e", Peaks())
             return ExecResult(1, "", "CUDA error: out of memory", False, 1.0, "s", "e", Peaks())
@@ -434,3 +436,22 @@ class SplitModelTests(unittest.TestCase):
             self.assertEqual(model_size_bytes(root / "m-00001-of-00002.gguf"), 15)
             (root / "single.gguf").write_bytes(b"c" * 7)
             self.assertEqual(model_size_bytes(root / "single.gguf"), 7)
+
+
+class HardwareFaultTests(unittest.TestCase):
+    ECC = ("ggml_backend_cuda_buffer_type_alloc_buffer: allocating 13876.48 MiB on device 0: "
+           "cudaMalloc failed: uncorrectable ECC error encountered")
+
+    def test_ecc_error_is_a_hardware_fault_not_oom(self):
+        out = classify_bench_outcome(returncode=1, decode_tps=None, stderr=self.ECC)
+        self.assertEqual(out.status, BenchStatus.RUNTIME_ABORT)
+        self.assertTrue(out.error.startswith("GPU hardware fault"))
+
+    def test_fault_is_not_retried_and_raises(self):
+        from llama_bench_tuner.measure import GpuFaultError
+        t = RetryTests()
+        with tempfile.TemporaryDirectory() as tmp:
+            m, calls = t._measurer(Path(tmp), ["ecc", "ok"], retry=3)
+            with self.assertRaises(GpuFaultError):
+                m.measure("t", BenchPoint())
+            self.assertEqual(len(calls), 1)

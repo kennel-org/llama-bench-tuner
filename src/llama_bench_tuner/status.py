@@ -66,6 +66,17 @@ _RUNTIME_ABORT_MARKERS = (
 )
 _ABORT_RETURN_CODES = (134, -6, 139, -11)
 
+# A GPU hardware fault (uncorrectable ECC, GPU fell off the bus) makes every later CUDA call fail,
+# often with allocator-looking messages ("cudaMalloc failed: uncorrectable ECC error encountered").
+# It must be checked before the OOM markers and is never retried.
+HARDWARE_FAULT_PREFIX = "GPU hardware fault"
+_HARDWARE_FAULT_MARKERS = (
+    "uncorrectable ecc",
+    "ecc error encountered",
+    "fallen off the bus",
+    "gpu is lost",
+)
+
 # With ``-v`` llama.cpp prints its whole load log; benign lines in it can contain words such as
 # "unsupported". Only the end of stderr (where a fatal error and its backtrace land) is searched.
 _STDERR_TAIL_LINES = 120
@@ -105,6 +116,10 @@ def classify_bench_outcome(
         return BenchOutcome(BenchStatus.SKIPPED, False, skip_reason)
     if timed_out:
         return BenchOutcome(BenchStatus.TIMEOUT, False, "llama-bench exceeded timeout")
+    if any(m in material for m in _HARDWARE_FAULT_MARKERS):
+        return BenchOutcome(BenchStatus.RUNTIME_ABORT, False,
+                            f"{HARDWARE_FAULT_PREFIX} (ECC/bus error reported by the CUDA driver); "
+                            "the GPU needs a reset before it can be benchmarked again")
 
     if returncode not in (None, 0):
         if any(marker in material for marker in _OOM_MARKERS):

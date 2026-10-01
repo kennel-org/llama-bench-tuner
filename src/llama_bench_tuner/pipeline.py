@@ -25,7 +25,7 @@ from .capacity import (CapacityConfig, PracticalCriteria, add_capacity_options, 
                        parse_str_list, run_capacity)
 from .gpu_gate import wait_for_gpu
 from .grid_stage import load_space, run_grid
-from .measure import BenchPoint, GpuBusyError
+from .measure import BenchPoint, GpuBusyError, GpuFaultError
 from .optuna_mo import DEFAULT_OBJECTIVES, PrunePolicy, refs_from_grid, run_study
 from .profiles import write_profiles
 from .stage_common import Context, build_context, load_capacity, read_json
@@ -189,6 +189,9 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         for stage in stages:
             print(f"=== stage: {stage} ===", flush=True)
             _RUNNERS[stage](args, ctx, root)
+    except GpuFaultError as exc:
+        print(f"GPU_FAULT: {exc}", file=sys.stderr)
+        raise SystemExit(4)
     except GpuBusyError as exc:
         print(f"GPU_BUSY: {exc}; progress is checkpointed — rerun with --resume", file=sys.stderr)
         raise SystemExit(3)

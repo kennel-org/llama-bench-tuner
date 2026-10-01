@@ -26,7 +26,7 @@ from typing import Any, Callable, Optional, Sequence
 from .capabilities import LlamaBenchCapabilities, probe_llama_bench
 from .executor import ExecResult, run_monitored
 from .gpu_gate import wait_for_gpu
-from .measure import BenchPoint, Measurer, point_command
+from .measure import BenchPoint, GpuFaultError, Measurer, point_command
 from .pareto import pareto_by_group, usable_metrics
 from .schema import PIPELINE_RESULT_FIELDS, PIPELINE_SCHEMA_VERSION
 from .status import FAILURE_STATUSES, BenchStatus
@@ -333,7 +333,13 @@ def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend
                 exit_code = 3
                 break
             print(f"RUN {key}: {shlex.join(_command(cfg, kv, depth))}", flush=True)
-            row = run_case(cfg, kv, depth, measurer=measurer, baselines=baselines)
+            try:
+                row = run_case(cfg, kv, depth, measurer=measurer, baselines=baselines)
+            except GpuFaultError as fault:
+                busy_row = fault.row  # recorded in the partial output, not checkpointed: resume retries it
+                print(f"GPU_FAULT {key}: {fault}")
+                exit_code = 4
+                break
             if cfg.stop_after_fail and row["status"] in _FAILURE_STATUSES:
                 failed_kv.add(kv)
         ck.add(key, row, len(cases), "capacity")
