@@ -243,6 +243,7 @@ uv run llama-tune-pipeline all \
 
 `llama-tune-capacity` runs only the first stage with its own `--run-dir`/`--resume`/`--dry-run`.
 Outputs go to `<out-dir>/pipeline/<name>/{capacity,grid,optuna,validation,profiles,pareto}`.
+A complete sample (pr36 / RTX 4000 Ada / 27B IQ4_XS) is in `reports/pipeline_pr36_swift15_2026-10-01/`.
 
 Design rules worth knowing:
 

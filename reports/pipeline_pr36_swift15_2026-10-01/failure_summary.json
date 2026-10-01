@@ -1,0 +1,52 @@
+{
+  "status_counts": {
+    "capacity": {
+      "success": 18
+    },
+    "grid": {
+      "success": 69,
+      "oom": 3
+    },
+    "optuna": {
+      "success": 31,
+      "runtime_abort": 1
+    },
+    "validation": {
+      "success": 48
+    }
+  },
+  "examples": [
+    {
+      "stage": "grid",
+      "case": "kv=f16,d=32768,ngl=99,b=1024,ub=1024,fa=0,p=512,n=64",
+      "status": "oom",
+      "error": "llama-bench reported out of memory",
+      "csv": "raw/grid_kv=f16_d=32768_ngl=99_b=1024_ub=1024_fa=0_p=512_n=64.csv",
+      "stderr": "grid/grid_kv=f16_d=32768_ngl=99_b=1024_ub=1024_fa=0_p=512_n=64.stderr.txt"
+    },
+    {
+      "stage": "grid",
+      "case": "kv=f16,d=32768,ngl=99,b=2048,ub=1024,fa=0,p=512,n=64",
+      "status": "oom",
+      "error": "llama-bench reported out of memory",
+      "csv": "raw/grid_kv=f16_d=32768_ngl=99_b=2048_ub=1024_fa=0_p=512_n=64.csv",
+      "stderr": "grid/grid_kv=f16_d=32768_ngl=99_b=2048_ub=1024_fa=0_p=512_n=64.stderr.txt"
+    },
+    {
+      "stage": "grid",
+      "case": "kv=f16,d=32768,ngl=99,b=4096,ub=1024,fa=0,p=512,n=64",
+      "status": "oom",
+      "error": "llama-bench reported out of memory",
+      "csv": "raw/grid_kv=f16_d=32768_ngl=99_b=4096_ub=1024_fa=0_p=512_n=64.csv",
+      "stderr": "grid/grid_kv=f16_d=32768_ngl=99_b=4096_ub=1024_fa=0_p=512_n=64.stderr.txt"
+    },
+    {
+      "stage": "optuna",
+      "case": "kv=f16,d=32768,ngl=99,b=4096,ub=256,fa=1,p=512,n=64",
+      "status": "runtime_abort",
+      "error": "llama-bench aborted at runtime (exit code -6); not classified as OOM",
+      "csv": "raw/optuna_t5f_kv=f16_d=32768_ngl=99_b=4096_ub=256_fa=1_p=512_n=64.csv",
+      "stderr": "optuna_d32768/optuna_t5f_kv=f16_d=32768_ngl=99_b=4096_ub=256_fa=1_p=512_n=64.stderr.txt"
+    }
+  ]
+}

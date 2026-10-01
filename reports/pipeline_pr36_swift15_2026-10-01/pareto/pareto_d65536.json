@@ -1,0 +1,92 @@
+{
+  "depth": 65536,
+  "maximize": [
+    "pp_tps",
+    "tg_tps"
+  ],
+  "minimize": [
+    "ttft_ms",
+    "vram_peak_mb"
+  ],
+  "n_rows": 12,
+  "front": [
+    {
+      "source": "optuna",
+      "depth": 65536,
+      "kv": "q4_0",
+      "ngl": "99",
+      "batch": "2048",
+      "ubatch": "512",
+      "flash_attn": "1",
+      "pp_tps": "520.183954",
+      "tg_tps": "14.679495",
+      "ttft_ms": "97280.0",
+      "vram_peak_mb": "16339"
+    },
+    {
+      "source": "optuna",
+      "depth": 65536,
+      "kv": "q8_0",
+      "ngl": "99",
+      "batch": "1024",
+      "ubatch": "256",
+      "flash_attn": "1",
+      "pp_tps": "527.753844",
+      "tg_tps": "14.383174",
+      "ttft_ms": "97771.0",
+      "vram_peak_mb": "17207"
+    },
+    {
+      "source": "optuna",
+      "depth": 65536,
+      "kv": "q8_0",
+      "ngl": "99",
+      "batch": "1024",
+      "ubatch": "1024",
+      "flash_attn": "1",
+      "pp_tps": "511.874899",
+      "tg_tps": "15.101389",
+      "ttft_ms": "98182.0",
+      "vram_peak_mb": "17904"
+    },
+    {
+      "source": "optuna",
+      "depth": 65536,
+      "kv": "f16",
+      "ngl": "99",
+      "batch": "4096",
+      "ubatch": "256",
+      "flash_attn": "1",
+      "pp_tps": "542.075846",
+      "tg_tps": "15.918659",
+      "ttft_ms": "96697.0",
+      "vram_peak_mb": "19122"
+    },
+    {
+      "source": "optuna",
+      "depth": 65536,
+      "kv": "q8_0",
+      "ngl": "99",
+      "batch": "4096",
+      "ubatch": "256",
+      "flash_attn": "1",
+      "pp_tps": "482.707578",
+      "tg_tps": "15.076673",
+      "ttft_ms": "102175.0",
+      "vram_peak_mb": "17230"
+    },
+    {
+      "source": "validation(median)",
+      "depth": 65536,
+      "kv": "f16",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "pp_tps": 468.500834,
+      "tg_tps": 15.946437,
+      "ttft_ms": 105359.0,
+      "vram_peak_mb": 19130
+    }
+  ]
+}

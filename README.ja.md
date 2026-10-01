@@ -231,6 +231,8 @@ uv run llama-tune-pipeline all \
 # 中断したら同じコマンドに --resume（完了済み stage はスキップ、途中の stage は checkpoint から再開）
 ```
 
+出力は `<out-dir>/pipeline/<name>/{capacity,grid,optuna,validation,profiles,pareto}` 配下です。完全なサンプル（pr36 / RTX 4000 Ada / 27B IQ4_XS）は `reports/pipeline_pr36_swift15_2026-10-01/` にあります。
+
 設計上の注意:
 
 * **推測で埋めない**: sampler が無い host では VRAM/RAM/クロック/電力は `null`。`llama-bench --help` に無い option は実行せず `unsupported` として記録。TTFT は pp からの**推定**（`ttft_kind=estimated_from_pp`）。

@@ -1,0 +1,194 @@
+{
+  "stage": "optuna",
+  "mode": "pareto",
+  "depth": 65536,
+  "study": "pr36-swift15-clean_d65536",
+  "objectives": [
+    "tg",
+    "pp",
+    "ttft",
+    "vram",
+    "wall"
+  ],
+  "base": {
+    "kv": "f16",
+    "depth": 0,
+    "ngl": 99,
+    "batch": 2048,
+    "ubatch": 512,
+    "flash_attn": 1,
+    "n_cpu_moe": null,
+    "split_mode": null,
+    "nkvo": null,
+    "prompt": 512,
+    "ngen": 64,
+    "reps": 1,
+    "threads": null
+  },
+  "space": {
+    "ngl": [
+      99
+    ],
+    "batch": [
+      1024,
+      2048,
+      4096
+    ],
+    "ubatch": [
+      1024,
+      256,
+      512
+    ],
+    "flash_attn": [
+      1
+    ],
+    "kv": [
+      "f16",
+      "q4_0",
+      "q8_0"
+    ]
+  },
+  "directions": [
+    "maximize",
+    "maximize",
+    "minimize",
+    "minimize",
+    "minimize"
+  ],
+  "trial_states": {
+    "COMPLETE": 8
+  },
+  "n_trials": 8,
+  "prune_policy": {
+    "min_completed": 4,
+    "tg_ratio": 0.6,
+    "note": "cheap-stage (depth 0) metrics are used for pruning only"
+  },
+  "best": [
+    {
+      "number": 1,
+      "params": {
+        "kv": "q4_0",
+        "batch": 2048,
+        "ubatch": 512
+      },
+      "values": [
+        14.679495,
+        520.183954,
+        97.28,
+        16339.0,
+        106.619
+      ],
+      "attrs": {
+        "pp_tps": 520.183954,
+        "tg_tps": 14.679495,
+        "vram_peak_mb": 16339,
+        "ram_peak_mb": 15090,
+        "wall_time_s": 106.619,
+        "ttft_est_s": 97.28,
+        "cheap_pp": 955.691824,
+        "cheap_tg": 19.399644
+      }
+    },
+    {
+      "number": 2,
+      "params": {
+        "kv": "q8_0",
+        "batch": 1024,
+        "ubatch": 256
+      },
+      "values": [
+        14.383174,
+        527.753844,
+        97.771,
+        17207.0,
+        108.577
+      ],
+      "attrs": {
+        "pp_tps": 527.753844,
+        "tg_tps": 14.383174,
+        "vram_peak_mb": 17207,
+        "ram_peak_mb": 15090,
+        "wall_time_s": 108.577,
+        "ttft_est_s": 97.771,
+        "cheap_pp": 918.351616,
+        "cheap_tg": 19.755226
+      }
+    },
+    {
+      "number": 4,
+      "params": {
+        "kv": "q8_0",
+        "batch": 1024,
+        "ubatch": 1024
+      },
+      "values": [
+        15.101389,
+        511.874899,
+        98.182,
+        17904.0,
+        113.007
+      ],
+      "attrs": {
+        "pp_tps": 511.874899,
+        "tg_tps": 15.101389,
+        "vram_peak_mb": 17904,
+        "ram_peak_mb": 15090,
+        "wall_time_s": 113.007,
+        "ttft_est_s": 98.182,
+        "cheap_pp": 959.080968,
+        "cheap_tg": 19.800247
+      }
+    },
+    {
+      "number": 5,
+      "params": {
+        "kv": "f16",
+        "batch": 4096,
+        "ubatch": 256
+      },
+      "values": [
+        15.918659,
+        542.075846,
+        96.697,
+        19122.0,
+        105.907
+      ],
+      "attrs": {
+        "pp_tps": 542.075846,
+        "tg_tps": 15.918659,
+        "vram_peak_mb": 19122,
+        "ram_peak_mb": 15090,
+        "wall_time_s": 105.907,
+        "ttft_est_s": 96.697,
+        "cheap_pp": 903.998037,
+        "cheap_tg": 19.353324
+      }
+    },
+    {
+      "number": 7,
+      "params": {
+        "kv": "q8_0",
+        "batch": 4096,
+        "ubatch": 256
+      },
+      "values": [
+        15.076673,
+        482.707578,
+        102.175,
+        17230.0,
+        107.481
+      ],
+      "attrs": {
+        "pp_tps": 482.707578,
+        "tg_tps": 15.076673,
+        "vram_peak_mb": 17230,
+        "ram_peak_mb": 15090,
+        "wall_time_s": 107.481,
+        "ttft_est_s": 102.175,
+        "cheap_pp": 955.570282,
+        "cheap_tg": 19.678046
+      }
+    }
+  ]
+}
