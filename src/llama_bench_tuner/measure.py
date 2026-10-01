@@ -76,6 +76,9 @@ def point_command(llama_bench: Path, model: Path, point: BenchPoint) -> list[str
         ubatch=point.ubatch, prompt=point.prompt, ngen=point.ngen, mmap=None, flash_attn=point.flash_attn,
         nkvo=point.nkvo, split_mode=point.split_mode, depth=point.depth, cache_type_k=point.kv,
         cache_type_v=point.kv, repetitions=point.reps, n_cpu_moe=point.n_cpu_moe,
+        # -v keeps ggml's error text on stderr (llama-bench is silent otherwise), which the failure
+        # classifier needs to tell OOM from a real runtime abort. Stdout (CSV) is unaffected.
+        verbose=True,
     )
     return build_llama_bench_command(spec)
 

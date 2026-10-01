@@ -34,6 +34,12 @@ _OOM_MARKERS = (
     "cuda_error_out_of_memory",
     "failed to allocate",
     "cannot allocate memory",
+    # llama-bench without -v swallows ggml's "CUDA error: out of memory" text; the backtrace
+    # still names the pool allocator that failed (mangled and demangled spellings).
+    "ggml_cuda_pool_vmm5alloc",
+    "ggml_cuda_pool_leg5alloc",
+    "ggml_cuda_pool_vmm::alloc",
+    "ggml_cuda_pool_leg::alloc",
 )
 _UNSUPPORTED_MARKERS = (
     "unknown model architecture",

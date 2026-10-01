@@ -53,6 +53,17 @@ class StatusTests(unittest.TestCase):
         out = classify_bench_outcome(returncode=1, decode_tps=None, stderr="CUDA error: out of memory")
         self.assertEqual(out.status, BenchStatus.OOM)
 
+    def test_swallowed_oom_is_recognised_from_pool_allocator_backtrace(self):
+        stderr = ("ggml-cuda.cu:107: CUDA error\n"
+                  "libggml-cuda.so.0(_ZN18ggml_cuda_pool_vmm5allocEmPm+0x352)[0x7b9bf529e842]")
+        out = classify_bench_outcome(returncode=134, decode_tps=None, stderr=stderr)
+        self.assertEqual(out.status, BenchStatus.OOM)
+
+    def test_hw_exception_with_pool_free_backtrace_is_still_runtime_abort(self):
+        out = classify_bench_outcome(returncode=134, decode_tps=None,
+                                     stderr="rocdevice.cpp: HW Exception Error\nggml-cuda.cu:107: ROCm error")
+        self.assertEqual(out.status, BenchStatus.RUNTIME_ABORT)
+
     def test_plain_failure_unchanged(self):
         out = classify_bench_outcome(returncode=2, decode_tps=None, stderr="usage: ...")
         self.assertEqual(out.status, BenchStatus.FAILED)
