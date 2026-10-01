@@ -32,6 +32,7 @@ class Context:
     timeout: float = 1500.0
     runner: Callable[..., ExecResult] = run_monitored
     gate: Optional[Callable[[], GateResult]] = None
+    retry_aborts: int = 1
 
     def measurer(self, stage_dir: Path, log_root: Path) -> Measurer:
         raw = stage_dir / "raw"
@@ -39,7 +40,8 @@ class Context:
         log_root.mkdir(parents=True, exist_ok=True)
         return Measurer(llama_bench=self.llama_bench, model=self.model, caps=self.caps, backend=self.backend,
                         gpu=self.gpu, gpu_index=self.gpu_index, raw_dir=raw, log_dir=log_root,
-                        timeout=self.timeout, runner=self.runner, gate=self.gate)
+                        timeout=self.timeout, runner=self.runner, gate=self.gate,
+                        retry_aborts=self.retry_aborts)
 
     def identity(self) -> dict[str, Any]:
         return {
@@ -52,7 +54,7 @@ class Context:
 
 
 def build_context(llama_bench: Path, model: Path, *, gpu_index: Optional[int], timeout: float,
-                  backend: Optional[GpuBackend] = None, detect: bool = True,
+                  retry_aborts: int = 1, backend: Optional[GpuBackend] = None, detect: bool = True,
                   runner: Callable[..., ExecResult] = run_monitored) -> Context:
     """Probe the binary and pick the single GPU to measure (never guessed on multi-GPU hosts)."""
 
@@ -68,7 +70,7 @@ def build_context(llama_bench: Path, model: Path, *, gpu_index: Optional[int], t
         gpu_index = gpus[0].index
     gpu = next((g for g in gpus if g.index == gpu_index), None)
     return Context(llama_bench=llama_bench, model=model, caps=probe_llama_bench(llama_bench), backend=backend,
-                   gpu=gpu, gpu_index=gpu_index, timeout=timeout, runner=runner)
+                   gpu=gpu, gpu_index=gpu_index, timeout=timeout, runner=runner, retry_aborts=retry_aborts)
 
 
 class Checkpoint:

@@ -153,6 +153,7 @@ PIPELINE_EXTRA_FIELDS = [
     "practical_candidate",
     "practical_reason",
     "attempts",
+    "attempt_history",        # JSON list of per-attempt statuses when a runtime_abort was retried
     "returncode",
     "start",
     "end",

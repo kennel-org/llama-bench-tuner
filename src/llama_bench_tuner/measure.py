@@ -125,6 +125,10 @@ class Measurer:
     timeout: float = 1500.0
     runner: Callable[..., ExecResult] = run_monitored
     gate: Optional[Callable[[], GateResult]] = None
+    retry_aborts: int = 1
+    """Re-run a point whose process died with ``runtime_abort`` this many times. Driver/WSL hiccups
+    (e.g. ``CUDA error: unknown error``) are intermittent; OOM and timeouts are deterministic and
+    never retried. The retry history is stored on the row."""
 
     def base_row(self, stage: str, point: BenchPoint) -> dict[str, Any]:
         env = environment_metadata()
@@ -152,17 +156,29 @@ class Measurer:
                        practical_reason="unsupported", telemetry_status="not_run")
             return row
 
-        if self.gate is not None:
-            verdict = self.gate()
-            if not verdict.ok:
-                raise GpuBusyError(verdict)
         cmd = point_command(self.llama_bench, self.model, point)
-        result = self.runner(cmd, timeout=self.timeout, backend=self.backend, gpu_index=self.gpu_index,
-                             env=gpu_env(self.backend, self.gpu_index))
         slug = "".join(c if c.isalnum() or c in "-_=" else "_" for c in point.key())
         name = f"{stage}_{tag + '_' if tag else ''}{slug}"
         csv_path = self.raw_dir / f"{name}.csv"
         err_path = self.log_dir / f"{name}.stderr.txt"
+        history: list[str] = []
+        for attempt in range(1, self.retry_aborts + 2):
+            if self.gate is not None:
+                verdict = self.gate()
+                if not verdict.ok:
+                    raise GpuBusyError(verdict)
+            result = self.runner(cmd, timeout=self.timeout, backend=self.backend, gpu_index=self.gpu_index,
+                                 env=gpu_env(self.backend, self.gpu_index))
+            parsed = extract_metrics_by_depth(parse_bench_csv(result.stdout.splitlines())).get(point.depth)
+            attempt_outcome = classify_bench_outcome(
+                returncode=result.returncode, decode_tps=parsed.tg_tps if parsed else None, stdout=result.stdout,
+                stderr=result.stderr, timed_out=result.timed_out)
+            history.append(attempt_outcome.status.value)
+            if attempt_outcome.status is not BenchStatus.RUNTIME_ABORT or attempt > self.retry_aborts:
+                break
+            # keep the aborted attempt's evidence before it is overwritten by the retry
+            (self.log_dir / f"{name}.attempt{attempt}.stderr.txt").write_text(result.stderr)
+            print(f"RETRY {point.key()}: runtime_abort on attempt {attempt} ({attempt_outcome.error})", flush=True)
         csv_path.write_text(result.stdout)
         if result.stderr.strip():
             err_path.write_text(result.stderr)
@@ -177,6 +193,7 @@ class Measurer:
         completed = outcome.status is BenchStatus.SUCCESS
         row.update(
             status=outcome.status.value, success=completed, capacity_ok=completed,
+            attempts=len(history), attempt_history=json.dumps(history) if len(history) > 1 else None,
             error="" if completed else outcome.error, returncode=result.returncode, pp_tps=pp, tg_tps=tg,
             wall_time_s=round(result.elapsed_s, 3), start=result.start_iso, end=result.end_iso,
             vram_baseline_mb=peaks.vram_baseline_mib, vram_peak_mb=peaks.vram_peak_mib,

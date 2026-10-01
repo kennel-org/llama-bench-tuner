@@ -76,7 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
 def _context(args: argparse.Namespace) -> Context:
     backend = detect_backend()
     ctx = build_context(args.llama_bench, args.model, gpu_index=args.gpu_index, timeout=args.per_run_timeout,
-                        backend=backend, detect=False)
+                        retry_aborts=args.retry_aborts, backend=backend, detect=False)
     threshold = int(args.min_free_vram_gib * 1024) if args.min_free_vram_gib else None
     if threshold and backend is not None:
         ctx.gate = lambda: wait_for_gpu(backend, min_free_mib=threshold, gpu_index=ctx.gpu_index,

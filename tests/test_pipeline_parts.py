@@ -368,3 +368,56 @@ class ReviewRegressionTests(unittest.TestCase):
             summary = run_study(ctx, m, out, **kwargs)
             counted = summary["trial_states"].get("COMPLETE", 0) + summary["trial_states"].get("PRUNED", 0)
             self.assertEqual(counted, 4)  # the dead trial was re-run, not counted
+
+
+class RetryTests(unittest.TestCase):
+    def _measurer(self, root, results, retry):
+        from llama_bench_tuner.capabilities import probe_llama_bench
+        from llama_bench_tuner.executor import ExecResult
+        from llama_bench_tuner.measure import Measurer
+        from llama_bench_tuner.telemetry import Peaks
+        binary = root / "llama-bench"
+        binary.write_text("#!/bin/sh\necho '-d, --n-depth'\n")
+        binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
+        model = root / "m.gguf"
+        model.write_bytes(b"x")
+        calls = []
+        seq = list(results)
+
+        def runner(cmd, **kw):
+            calls.append(1)
+            kind = seq.pop(0)
+            if kind == "ok":
+                out = "n_prompt,n_gen,n_depth,avg_ts\n512,0,0,900\n0,64,0,20\n"
+                return ExecResult(0, out, "", False, 1.0, "s", "e", Peaks())
+            if kind == "abort":
+                return ExecResult(-6, "", "CUDA error: unknown error\nggml_abort", False, 1.0, "s", "e", Peaks())
+            return ExecResult(1, "", "CUDA error: out of memory", False, 1.0, "s", "e", Peaks())
+        (root / "raw").mkdir(exist_ok=True)
+        (root / "log").mkdir(exist_ok=True)
+        m = Measurer(binary, model, probe_llama_bench(binary), None, None, None, root / "raw", root / "log",
+                     runner=runner, retry_aborts=retry)
+        return m, calls
+
+    def test_intermittent_abort_is_retried_and_recorded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m, calls = self._measurer(Path(tmp), ["abort", "ok"], retry=1)
+            row = m.measure("t", BenchPoint())
+            self.assertEqual(row["status"], "success")
+            self.assertEqual(row["attempts"], 2)
+            self.assertEqual(json.loads(row["attempt_history"]), ["runtime_abort", "success"])
+            self.assertEqual(len(calls), 2)
+            self.assertTrue(any(Path(tmp, "log").glob("*.attempt1.stderr.txt")))  # evidence of the first failure kept
+
+    def test_persistent_abort_is_still_reported_and_oom_is_never_retried(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m, calls = self._measurer(Path(tmp), ["abort", "abort"], retry=1)
+            row = m.measure("t", BenchPoint())
+            self.assertEqual(row["status"], "runtime_abort")
+            self.assertEqual(row["attempts"], 2)
+        with tempfile.TemporaryDirectory() as tmp:
+            m, calls = self._measurer(Path(tmp), ["oom", "ok"], retry=3)
+            row = m.measure("t", BenchPoint())
+            self.assertEqual(row["status"], "oom")
+            self.assertEqual(len(calls), 1)
+            self.assertIsNone(row["attempt_history"])

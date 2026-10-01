@@ -70,6 +70,7 @@ class CapacityConfig:
     threads: Optional[int] = None
     n_cpu_moe: Optional[int] = None
     per_run_timeout: float = 1500.0
+    retry_aborts: int = 1
     gpu_index: Optional[int] = None
     min_free_vram_mib: Optional[int] = None
     wait_for_gpu: bool = False
@@ -241,7 +242,7 @@ def _fingerprint(cfg: CapacityConfig) -> tuple[dict[str, Any], str]:
         "depths": list(cfg.depths), "kv_types": list(cfg.kv_types), "ngl": cfg.ngl, "batch": cfg.batch,
         "ubatch": cfg.ubatch, "flash_attn": cfg.flash_attn, "prompt": cfg.prompt, "ngen": cfg.ngen,
         "repetitions": cfg.repetitions, "threads": cfg.threads, "n_cpu_moe": cfg.n_cpu_moe, "gpu_index": cfg.gpu_index,
-        "per_run_timeout": cfg.per_run_timeout, "criteria": asdict(cfg.criteria),
+        "per_run_timeout": cfg.per_run_timeout, "retry_aborts": cfg.retry_aborts, "criteria": asdict(cfg.criteria),
     }
     return definition, benchmark_fingerprint(definition)
 
@@ -299,7 +300,7 @@ def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend
 
     measurer = Measurer(llama_bench=cfg.llama_bench, model=cfg.model, caps=caps, backend=backend, gpu=gpu,
                         gpu_index=gpu_index, raw_dir=raw_dir, log_dir=log_root, timeout=cfg.per_run_timeout,
-                        runner=runner)
+                        runner=runner, retry_aborts=cfg.retry_aborts)
     cases = [(kv, depth) for kv in cfg.kv_types for depth in sorted(cfg.depths)]
     baselines: dict[str, dict[str, float]] = {}
     for r in rows:  # rebuild d0 baselines after a resume
@@ -361,6 +362,7 @@ def add_capacity_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--threads", type=int, default=None)
     p.add_argument("--n-cpu-moe", type=int, default=None, help="keep the MoE expert weights of the first N layers on the CPU (-ncmoe)")
     p.add_argument("--per-run-timeout", type=float, default=1500.0, help="seconds per benchmark process")
+    p.add_argument("--retry-aborts", type=int, default=1, help="re-run a point that died with runtime_abort (intermittent driver errors); OOM/timeout are never retried")
     p.add_argument("--gpu-index", type=int, default=None, help="measure exactly this GPU (required on multi-GPU hosts)")
     p.add_argument("--min-free-vram-gib", type=float, default=None, help="require this much free VRAM before each run")
     p.add_argument("--wait-for-gpu", action="store_true", help="poll until the GPU is free instead of stopping")
@@ -393,7 +395,7 @@ def config_from_args(args: argparse.Namespace) -> CapacityConfig:
         llama_bench=args.llama_bench, model=args.model, depths=tuple(sorted(set(parse_int_list(args.depths)))),
         kv_types=parse_str_list(args.kv), ngl=args.ngl, batch=args.batch, ubatch=args.ubatch,
         flash_attn=args.flash_attn, prompt=args.prompt, ngen=args.ngen, repetitions=args.reps,
-        threads=args.threads, n_cpu_moe=args.n_cpu_moe, per_run_timeout=args.per_run_timeout, gpu_index=args.gpu_index,
+        threads=args.threads, n_cpu_moe=args.n_cpu_moe, per_run_timeout=args.per_run_timeout, retry_aborts=args.retry_aborts, gpu_index=args.gpu_index,
         min_free_vram_mib=int(args.min_free_vram_gib * 1024) if args.min_free_vram_gib else None,
         wait_for_gpu=args.wait_for_gpu, gpu_wait_timeout=args.gpu_wait_timeout, gpu_poll_s=args.gpu_poll,
         stop_after_fail=not args.no_stop_after_fail,
