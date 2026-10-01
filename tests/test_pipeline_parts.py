@@ -158,7 +158,7 @@ class TelemetryTests(unittest.TestCase):
                 "#!/bin/sh\n"
                 'case "$*" in\n'
                 '  *--query-gpu=index,name,memory.total,driver_version*) echo "0, Tesla P40, 23040, 580.1";;\n'
-                '  *memory.used,temperature.gpu*) echo "1234, 55, [N/A], 70.5, 0x0000000000000004";;\n'
+                '  *memory.used,temperature.gpu*) echo "1234, 55, [N/A], 70.5, 97, 0x0000000000000004";;\n'
                 '  *clocks_event_reasons.active*) echo "[N/A]";;\n'
                 '  *clocks_throttle_reasons.active*) echo "0x0000000000000004";;\n'
                 '  *memory.used*) echo "1234";;\n'
@@ -174,6 +174,7 @@ class TelemetryTests(unittest.TestCase):
             self.assertEqual(sample["used_mib"], 1234.0)
             self.assertIsNone(sample["sm_clock_mhz"])  # [N/A] -> None, not 0
             self.assertEqual(sample["power_w"], 70.5)
+            self.assertEqual(sample["util_pct"], 97.0)
 
     def test_amd_sysfs_counts_vram_plus_gtt(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -216,6 +217,31 @@ class TelemetryTests(unittest.TestCase):
         finally:
             os.environ["PATH"] = old
         self.assertTrue(backend is None or backend.name == "amdgpu-sysfs")
+
+
+class BusyOnlyTelemetryTests(unittest.TestCase):
+    def test_idle_samples_do_not_count_as_clock_drops_or_throttle(self):
+        import time
+
+        class Idle(FakeBackend):
+            def __init__(self):
+                super().__init__([{0: 1}])
+                self.n = 0
+
+            def sample(self, index):
+                self.n += 1
+                if self.n <= 3:  # idle ramp-up: low clock, gpu_idle bit
+                    return {"used_mib": 100.0, "temp_c": 30.0, "sm_clock_mhz": 544.0, "power_w": 40.0,
+                            "util_pct": 0.0, "throttle_mask": 1.0}
+                return {"used_mib": 17000.0, "temp_c": 70.0, "sm_clock_mhz": 1531.0, "power_w": 200.0,
+                        "util_pct": 99.0, "throttle_mask": 0.0}
+        monitor = PeakMonitor(Idle(), 0, os.getpid(), interval=0.03)
+        monitor.start()
+        time.sleep(0.4)
+        peaks = monitor.stop()
+        self.assertEqual(peaks.sm_clock_min_mhz, 1531.0)  # the 544 MHz idle readings are ignored
+        self.assertIsNone(peaks.throttle_reasons)
+        self.assertEqual(peaks.vram_peak_mib, 17000)
 
 
 class ParetoSchemaTests(unittest.TestCase):
@@ -455,3 +481,11 @@ class HardwareFaultTests(unittest.TestCase):
             with self.assertRaises(GpuFaultError):
                 m.measure("t", BenchPoint())
             self.assertEqual(len(calls), 1)
+
+
+class DeepRepsTests(unittest.TestCase):
+    def test_reps_for_depth(self):
+        from llama_bench_tuner.validation import _reps_for
+        self.assertEqual(_reps_for(32768, 3, 2, 131072), 3)
+        self.assertEqual(_reps_for(131072, 3, 2, 131072), 2)
+        self.assertEqual(_reps_for(131072, 3, None, 131072), 3)

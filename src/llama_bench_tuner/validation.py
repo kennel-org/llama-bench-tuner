@@ -127,7 +127,8 @@ def summarise(runs: list[dict[str, Any]], depth: int, reps: int, d0_pp: Optional
 
 def run_validation(ctx: Context, run_root: Path, capacity_path: Path, out_dir: Path, log_root: Path, *,
                    depths: Sequence[int], reps: int, top_k: int, criteria: PracticalCriteria, cv_limit: float,
-                   soak_ngen: int, base: BenchPoint, resume: bool) -> dict[str, Any]:
+                   soak_ngen: int, base: BenchPoint, resume: bool,
+                   reps_deep: Optional[int] = None, deep_from: int = 131072) -> dict[str, Any]:
     capacity = load_capacity(capacity_path)
     cands = collect_candidates(run_root, top_k)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -142,8 +143,8 @@ def run_validation(ctx: Context, run_root: Path, capacity_path: Path, out_dir: P
                 skipped.append({"config": cand["point"].config_key(), "depth": depth,
                                 "reason": f"beyond capacity boundary of kv={kv} ({cap_max.get(kv)})"})
                 continue
-            plan.extend((cand, depth, rep) for rep in range(1, reps + 1))
-    definition = {"stage": "validation", **ctx.identity(), "reps": reps, "depths": list(depths),
+            plan.extend((cand, depth, rep) for rep in range(1, _reps_for(depth, reps, reps_deep, deep_from) + 1))
+    definition = {"stage": "validation", **ctx.identity(), "reps": reps, "depths": list(depths), "reps_deep": reps_deep,
                   "capacity_fingerprint": capacity.get("benchmark_fingerprint"), "criteria": criteria.__dict__,
                   "plan": [f"{c['point'].config_key()}|d={d}|r={r}" for c, d, r in plan]}
     ck = Checkpoint(out_dir / "checkpoint.json", definition, resume, "validation")
@@ -169,7 +170,8 @@ def run_validation(ctx: Context, run_root: Path, capacity_path: Path, out_dir: P
         per_depth = {"0": d0}
         for depth in depths:
             if depth in by_depth:
-                per_depth[str(depth)] = summarise(by_depth[depth], depth, reps, d0["pp"]["median"],
+                per_depth[str(depth)] = summarise(by_depth[depth], depth, _reps_for(depth, reps, reps_deep, deep_from),
+                                                  d0["pp"]["median"],
                                                   d0["tg"]["median"], criteria, cv_limit, vram_total)
         soak = None
         practical_depths = [int(d) for d, s in per_depth.items() if int(d) and s["practical"]]
@@ -187,13 +189,21 @@ def run_validation(ctx: Context, run_root: Path, capacity_path: Path, out_dir: P
         summaries.append({"config": cand["point"].to_dict(), "config_key": cfg_key, "source": cand["source"],
                           "depths": per_depth, "soak": soak})
     write_rows_csv(out_dir / "validation.csv", ck.rows)
-    result = {"stage": "validation", "reps": reps, "depths": list(depths), "top_k": top_k,
+    result = {"stage": "validation", "reps": reps, "reps_deep": reps_deep, "deep_from": deep_from,
+              "depths": list(depths), "top_k": top_k,
               "prompt": base.prompt, "ngen": base.ngen,
               "criteria": criteria.__dict__, "cv_limit": cv_limit, "benchmark_fingerprint": ck.fingerprint,
               "runtime_commits": sorted({r["runtime_commit"] for r in ck.rows if r.get("runtime_commit")}),
               "skipped": skipped, "candidates": summaries, "elapsed_seconds": ck.elapsed()}
     write_json(out_dir / "validation.json", result)
     return result
+
+
+def _reps_for(depth: int, reps: int, reps_deep: Optional[int], deep_from: int) -> int:
+    """Repeats at ``depth``. Very deep contexts can take tens of minutes per run on slow GPUs, so they may
+    use fewer repeats (``--validate-reps-deep``); the number actually used is recorded per depth."""
+
+    return reps_deep if reps_deep is not None and depth >= deep_from else reps
 
 
 def _config_of(row: dict[str, Any]) -> str:

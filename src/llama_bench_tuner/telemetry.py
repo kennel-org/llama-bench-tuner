@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Optional, Protocol
 
 _WSL_NVIDIA_SMI = "/usr/lib/wsl/lib/nvidia-smi"
+BUSY_UTIL_PCT = 50.0
 
 
 @dataclass(frozen=True)
@@ -119,18 +120,18 @@ class NvidiaSmiBackend:
 
     def sample(self, index: int) -> dict[str, Optional[float]]:
         throttle = self._throttle_query_field(index)
-        fields = "memory.used,temperature.gpu,clocks.sm,power.draw" + (f",{throttle}" if throttle else "")
+        fields = "memory.used,temperature.gpu,clocks.sm,power.draw,utilization.gpu" + (f",{throttle}" if throttle else "")
         row = self._query(index, fields)
         if row is None:
             return {}
-        row = row + [""] * (4 - len(row))  # tolerate short/odd rows; missing -> None
+        row = row + [""] * (5 - len(row))  # tolerate short/odd rows; missing -> None
         values: dict[str, Optional[float]] = {
             "used_mib": _to_float(row[0]), "temp_c": _to_float(row[1]),
-            "sm_clock_mhz": _to_float(row[2]), "power_w": _to_float(row[3]),
+            "sm_clock_mhz": _to_float(row[2]), "power_w": _to_float(row[3]), "util_pct": _to_float(row[4]),
         }
-        if throttle and len(row) > 4:
+        if throttle and len(row) > 5:
             try:
-                values["throttle_mask"] = float(int(row[4], 16))
+                values["throttle_mask"] = float(int(row[5], 16))
             except ValueError:
                 values["throttle_mask"] = None
         return values
@@ -256,17 +257,22 @@ class PeakMonitor:
                 used = sample.get("used_mib")
                 if used is not None:
                     peaks.vram_peak_mib = max(peaks.vram_peak_mib or 0, int(used))
+                # Clock/throttle readings taken while the GPU is idle (model loading, ramp-up, tear-down)
+                # would report an idle clock and the "gpu_idle" throttle bit as if they were slowdowns, so
+                # they only count while utilisation is high. Peaks of VRAM/temperature/power are unaffected.
+                util = sample.get("util_pct")
+                busy = util is None or util >= BUSY_UTIL_PCT
                 temp = sample.get("temp_c")
                 if temp is not None:
                     peaks.temp_max_c = max(peaks.temp_max_c or temp, temp)
                 clock = sample.get("sm_clock_mhz")
-                if clock is not None:
+                if clock is not None and busy:
                     peaks.sm_clock_min_mhz = min(peaks.sm_clock_min_mhz or clock, clock)
                 power = sample.get("power_w")
                 if power is not None:
                     peaks.power_max_w = max(peaks.power_max_w or power, power)
                 mask = sample.get("throttle_mask")
-                if mask:
+                if mask and busy:
                     merged = int(peaks.throttle_reasons or "0x0", 16) | int(mask)
                     peaks.throttle_reasons = hex(merged)
                 if sample:

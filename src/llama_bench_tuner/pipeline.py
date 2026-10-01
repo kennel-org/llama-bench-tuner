@@ -66,6 +66,8 @@ def build_parser() -> argparse.ArgumentParser:
     v = p.add_argument_group("validation / profiles")
     v.add_argument("--validate-depths", nargs="+", default=["8k,32k,64k,128k"])
     v.add_argument("--validate-reps", type=int, default=3)
+    v.add_argument("--validate-reps-deep", type=int, default=None,
+                   help="repeats for depths >= 128K (default: same as --validate-reps); the used value is recorded")
     v.add_argument("--top-k", type=int, default=4)
     v.add_argument("--cv-limit", type=float, default=0.05)
     v.add_argument("--soak-ngen", type=int, default=0, help="extra long decode at the deepest practical depth (0 = off)")
@@ -172,7 +174,8 @@ def stage_validate(args, ctx: Context, root: Path) -> None:
     run_validation(ctx, root, root / "capacity" / "capacity.json", out,
                    args.tmp_dir / "pipeline" / root.name / "validation", depths=parse_int_list(args.validate_depths),
                    reps=args.validate_reps, top_k=args.top_k, criteria=crit, cv_limit=args.cv_limit,
-                   soak_ngen=args.soak_ngen, base=_base(args), resume=args.resume)
+                   soak_ngen=args.soak_ngen, base=_base(args), resume=args.resume,
+                   reps_deep=args.validate_reps_deep)
 
 
 def stage_profile(args, ctx: Context, root: Path) -> None:
