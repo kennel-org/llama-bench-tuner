@@ -153,6 +153,9 @@ PIPELINE_EXTRA_FIELDS = [
     "practical_candidate",
     "practical_reason",
     "attempts",
+    "draft_n",                # speculative decoding: tokens drafted
+    "draft_n_accepted",
+    "draft_acceptance",
     "attempt_history",        # JSON list of per-attempt statuses when a runtime_abort was retried
     "returncode",
     "start",

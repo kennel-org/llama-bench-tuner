@@ -33,12 +33,13 @@ from .telemetry import detect_backend
 from .validation import run_validation
 
 STAGES = ("capacity", "grid", "optuna", "validate", "profile")
+OPTIONAL_STAGES = ("server", "soak")  # need a real llama-server; run explicitly, not part of ``all``
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="llama-tune-pipeline", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("stage", choices=[*STAGES, "all"])
+    p.add_argument("stage", choices=[*STAGES, *OPTIONAL_STAGES, "all"])
     p.add_argument("--llama-bench", type=Path, required=True)
     p.add_argument("--model", type=Path, required=True)
     p.add_argument("--name", default=None, help="run name (default: timestamp); the run root is <out-dir>/pipeline/<name>")
@@ -70,6 +71,18 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--soak-ngen", type=int, default=0, help="extra long decode at the deepest practical depth (0 = off)")
     v.add_argument("--fast-depth", type=parse_depth, default=8192, help="e.g. 8192 or 8k")
     v.add_argument("--balanced-depth", type=parse_depth, default=32768, help="e.g. 32768 or 32k")
+    sv = p.add_argument_group("server / soak (stages `server`, `soak`; need llama-server beside llama-bench)")
+    sv.add_argument("--server-sizes", nargs="+", default=["4k,16k,32k"], help="prompt sizes for measured TTFT")
+    sv.add_argument("--server-reps", type=int, default=3)
+    sv.add_argument("--server-max-tokens", type=int, default=128)
+    sv.add_argument("--server-profiles", nargs="+", default=None, choices=["fast", "balanced", "long"])
+    sv.add_argument("--spec-compare", action="store_true", help="also run each profile with speculative decoding and compare")
+    sv.add_argument("--spec-type", default="draft-mtp")
+    sv.add_argument("--spec-draft-n-max", type=int, default=3)
+    sv.add_argument("--server-startup-timeout", type=float, default=900.0)
+    sv.add_argument("--soak-profile", default="balanced", choices=["fast", "balanced", "long"])
+    sv.add_argument("--soak-minutes", type=float, default=15.0)
+    sv.add_argument("--soak-window", type=float, default=30.0, help="seconds per decode-speed window")
     return p
 
 
@@ -170,7 +183,28 @@ def stage_profile(args, ctx: Context, root: Path) -> None:
     print(f"pareto depths: {result['pareto_depths']}")
 
 
-_RUNNERS = {"capacity": stage_capacity, "grid": stage_grid, "optuna": stage_optuna, "validate": stage_validate,
+def stage_server(args, ctx: Context, root: Path) -> None:
+    from .server_stage import run_server_stage
+    report = run_server_stage(
+        ctx, root, root / "server", args.tmp_dir / "pipeline" / root.name / "server",
+        sizes=parse_int_list(args.server_sizes), reps=args.server_reps, max_tokens=args.server_max_tokens,
+        spec_compare=args.spec_compare, spec_type=args.spec_type, spec_draft_n_max=args.spec_draft_n_max,
+        startup_timeout=args.server_startup_timeout, only=args.server_profiles)
+    for name, entry in report["profiles"].items():
+        spec = entry["speculation"].get("status")
+        print(f"server {name}: sizes={entry['sizes']} speculation={spec}")
+
+
+def stage_soak(args, ctx: Context, root: Path) -> None:
+    from .server_stage import run_soak_stage
+    result = run_soak_stage(ctx, root, root / "soak", args.tmp_dir / "pipeline" / root.name / "soak",
+                            profile_name=args.soak_profile, minutes=args.soak_minutes, window_s=args.soak_window,
+                            startup_timeout=args.server_startup_timeout)
+    print(f"soak {args.soak_profile}: verdict={result['verdict']}")
+
+
+_RUNNERS = {"server": stage_server, "soak": stage_soak,
+            "capacity": stage_capacity, "grid": stage_grid, "optuna": stage_optuna, "validate": stage_validate,
             "profile": stage_profile}
 
 

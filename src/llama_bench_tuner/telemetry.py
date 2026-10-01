@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Protocol
@@ -239,9 +240,12 @@ class PeakMonitor:
     gpu_index: Optional[int]
     pid: int
     interval: float = 1.0
+    record_series: bool = False
     peaks: Peaks = field(default_factory=Peaks)
+    series: list = field(default_factory=list)
     _stop: threading.Event = field(default_factory=threading.Event)
     _thread: Optional[threading.Thread] = None
+    _t0: float = 0.0
 
     def _poll(self) -> None:
         peaks = self.peaks
@@ -267,6 +271,8 @@ class PeakMonitor:
                     peaks.throttle_reasons = hex(merged)
                 if sample:
                     peaks.samples += 1
+                    if self.record_series:
+                        self.series.append({"t": time.monotonic() - self._t0, **sample})
             rss = read_rss_peak_mib(self.pid)
             if rss is not None:
                 peaks.ram_peak_mib = max(peaks.ram_peak_mib or 0, rss)
@@ -275,6 +281,7 @@ class PeakMonitor:
                 return
 
     def start(self) -> None:
+        self._t0 = time.monotonic()
         if self.backend is not None:
             self.peaks.vram_baseline_mib = self.backend.used_mib(
                 self.gpu_index if self.gpu_index is not None else 0
