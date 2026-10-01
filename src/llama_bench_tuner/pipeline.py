@@ -87,7 +87,8 @@ def _context(args: argparse.Namespace) -> Context:
 
 def _base(args: argparse.Namespace) -> BenchPoint:
     return BenchPoint(ngl=args.ngl, batch=args.batch, ubatch=args.ubatch, flash_attn=args.flash_attn,
-                      prompt=args.prompt, ngen=args.ngen, reps=args.reps, threads=args.threads)
+                      prompt=args.prompt, ngen=args.ngen, reps=args.reps, threads=args.threads,
+                      n_cpu_moe=args.n_cpu_moe)
 
 
 def _guard(out: Path, marker: str, resume: bool, label: str) -> bool:

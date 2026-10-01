@@ -175,6 +175,12 @@ class CapacityTests(unittest.TestCase):
             self.assertIn("-d 4096", lines[1])
             self.assertIn("-ctk q8_0 -ctv q8_0", lines[2])
             self.assertNotIn("-mmp", lines[0])
+            self.assertNotIn("-ncmoe", lines[0])
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                capacity.main(["--llama-bench", str(binary), "--model", str(model), "--depths", "0",
+                               "--kv", "f16", "--n-cpu-moe", "12", "--dry-run"])
+            self.assertIn("-ncmoe 12", buf.getvalue())
 
 
 if __name__ == "__main__":

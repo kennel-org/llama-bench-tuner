@@ -70,6 +70,7 @@ class CapacityConfig:
     ngen: int = 64
     repetitions: int = 1
     threads: Optional[int] = None
+    n_cpu_moe: Optional[int] = None
     per_run_timeout: float = 1500.0
     gpu_index: Optional[int] = None
     min_free_vram_mib: Optional[int] = None
@@ -138,7 +139,7 @@ def _ratio(value: Optional[float], base: Optional[float]) -> Optional[float]:
 def _point(cfg: CapacityConfig, kv: str, depth: int) -> BenchPoint:
     return BenchPoint(kv=kv, depth=depth, ngl=cfg.ngl, batch=cfg.batch, ubatch=cfg.ubatch,
                       flash_attn=cfg.flash_attn, prompt=cfg.prompt, ngen=cfg.ngen,
-                      reps=cfg.repetitions, threads=cfg.threads)
+                      reps=cfg.repetitions, threads=cfg.threads, n_cpu_moe=cfg.n_cpu_moe)
 
 
 def _command(cfg: CapacityConfig, kv: str, depth: int) -> list[str]:
@@ -237,7 +238,7 @@ def _fingerprint(cfg: CapacityConfig) -> tuple[dict[str, Any], str]:
         "model_identity": _file_identity(cfg.model, hash_content=False),
         "depths": list(cfg.depths), "kv_types": list(cfg.kv_types), "ngl": cfg.ngl, "batch": cfg.batch,
         "ubatch": cfg.ubatch, "flash_attn": cfg.flash_attn, "prompt": cfg.prompt, "ngen": cfg.ngen,
-        "repetitions": cfg.repetitions, "threads": cfg.threads, "gpu_index": cfg.gpu_index,
+        "repetitions": cfg.repetitions, "threads": cfg.threads, "n_cpu_moe": cfg.n_cpu_moe, "gpu_index": cfg.gpu_index,
         "per_run_timeout": cfg.per_run_timeout, "criteria": asdict(cfg.criteria),
     }
     return definition, benchmark_fingerprint(definition)
@@ -372,6 +373,7 @@ def add_capacity_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--ngen", type=int, default=64)
     p.add_argument("--reps", type=int, default=1, help="llama-bench -r (repeats inside one process)")
     p.add_argument("--threads", type=int, default=None)
+    p.add_argument("--n-cpu-moe", type=int, default=None, help="keep the MoE expert weights of the first N layers on the CPU (-ncmoe)")
     p.add_argument("--per-run-timeout", type=float, default=1500.0, help="seconds per benchmark process")
     p.add_argument("--gpu-index", type=int, default=None, help="measure exactly this GPU (required on multi-GPU hosts)")
     p.add_argument("--min-free-vram-gib", type=float, default=None, help="require this much free VRAM before each run")
@@ -405,7 +407,7 @@ def config_from_args(args: argparse.Namespace) -> CapacityConfig:
         llama_bench=args.llama_bench, model=args.model, depths=tuple(sorted(set(parse_int_list(args.depths)))),
         kv_types=parse_str_list(args.kv), ngl=args.ngl, batch=args.batch, ubatch=args.ubatch,
         flash_attn=args.flash_attn, prompt=args.prompt, ngen=args.ngen, repetitions=args.reps,
-        threads=args.threads, per_run_timeout=args.per_run_timeout, gpu_index=args.gpu_index,
+        threads=args.threads, n_cpu_moe=args.n_cpu_moe, per_run_timeout=args.per_run_timeout, gpu_index=args.gpu_index,
         min_free_vram_mib=int(args.min_free_vram_gib * 1024) if args.min_free_vram_gib else None,
         wait_for_gpu=args.wait_for_gpu, gpu_wait_timeout=args.gpu_wait_timeout, gpu_poll_s=args.gpu_poll,
         stop_after_fail=not args.no_stop_after_fail,
