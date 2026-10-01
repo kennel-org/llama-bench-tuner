@@ -1,0 +1,187 @@
+{
+  "duration_s": 327.3,
+  "requests": 12,
+  "window_s": 20.0,
+  "tg_first_tps": 18.6,
+  "tg_last_tps": 18.6,
+  "temp_max_c": 79.0,
+  "windows": [
+    {
+      "t0": 0.9,
+      "t1": 20.9,
+      "tg_tps": 19.5,
+      "temp_c": 76.0,
+      "sm_clock_mhz": 2287.5,
+      "sm_clock_min_mhz": 2250.0,
+      "power_w": 129.01,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 20.9,
+      "t1": 40.9,
+      "tg_tps": 18.35,
+      "temp_c": 77.0,
+      "sm_clock_mhz": 2265.0,
+      "sm_clock_min_mhz": 2250.0,
+      "power_w": 129.02,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 40.9,
+      "t1": 60.9,
+      "tg_tps": 18.6,
+      "temp_c": 78.0,
+      "sm_clock_mhz": 2250.0,
+      "sm_clock_min_mhz": 2250.0,
+      "power_w": 129.09,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 60.9,
+      "t1": 80.9,
+      "tg_tps": 19.5,
+      "temp_c": 78.0,
+      "sm_clock_mhz": 2250.0,
+      "sm_clock_min_mhz": 2235.0,
+      "power_w": 129.08,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 80.9,
+      "t1": 100.9,
+      "tg_tps": 18.6,
+      "temp_c": 78.0,
+      "sm_clock_mhz": 2257.5,
+      "sm_clock_min_mhz": 2235.0,
+      "power_w": 129.08,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 100.9,
+      "t1": 120.9,
+      "tg_tps": 18.45,
+      "temp_c": 79.0,
+      "sm_clock_mhz": 2250.0,
+      "sm_clock_min_mhz": 2235.0,
+      "power_w": 128.96,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 120.9,
+      "t1": 140.9,
+      "tg_tps": 18.4,
+      "temp_c": 79.0,
+      "sm_clock_mhz": 2265.0,
+      "sm_clock_min_mhz": 2250.0,
+      "power_w": 128.99,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 140.9,
+      "t1": 160.9,
+      "tg_tps": 19.4,
+      "temp_c": 79.0,
+      "sm_clock_mhz": 2250.0,
+      "sm_clock_min_mhz": 2250.0,
+      "power_w": 129.11,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 160.9,
+      "t1": 180.9,
+      "tg_tps": 18.3,
+      "temp_c": 79.0,
+      "sm_clock_mhz": 2250.0,
+      "sm_clock_min_mhz": 2250.0,
+      "power_w": 128.95,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 180.9,
+      "t1": 200.9,
+      "tg_tps": 18.4,
+      "temp_c": 79.0,
+      "sm_clock_mhz": 2265.0,
+      "sm_clock_min_mhz": 2235.0,
+      "power_w": 128.97,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 200.9,
+      "t1": 220.9,
+      "tg_tps": 18.45,
+      "temp_c": 79.0,
+      "sm_clock_mhz": 2250.0,
+      "sm_clock_min_mhz": 2235.0,
+      "power_w": 128.95,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 220.9,
+      "t1": 240.9,
+      "tg_tps": 19.45,
+      "temp_c": 79.0,
+      "sm_clock_mhz": 2250.0,
+      "sm_clock_min_mhz": 2235.0,
+      "power_w": 129.03,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 240.9,
+      "t1": 260.9,
+      "tg_tps": 18.35,
+      "temp_c": 79.0,
+      "sm_clock_mhz": 2250.0,
+      "sm_clock_min_mhz": 1875.0,
+      "power_w": 128.99,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 260.9,
+      "t1": 280.9,
+      "tg_tps": 18.35,
+      "temp_c": 79.0,
+      "sm_clock_mhz": 2265.0,
+      "sm_clock_min_mhz": 2235.0,
+      "power_w": 129.0,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 280.9,
+      "t1": 300.9,
+      "tg_tps": 18.6,
+      "temp_c": 78.0,
+      "sm_clock_mhz": 2250.0,
+      "sm_clock_min_mhz": 2250.0,
+      "power_w": 129.07,
+      "throttle_mask": 4.0
+    },
+    {
+      "t0": 300.9,
+      "t1": 320.9,
+      "tg_tps": 19.2,
+      "temp_c": 78.0,
+      "sm_clock_mhz": 2265.0,
+      "sm_clock_min_mhz": 2235.0,
+      "power_w": 128.99,
+      "throttle_mask": 4.0
+    }
+  ],
+  "verdict": {
+    "pass": true,
+    "criteria": "no thermal/power-brake throttle bit, SM clock drop <= 10 %, tg drift >= -10 %",
+    "thermal_throttle_seen": false,
+    "tg_drift": 0.0,
+    "sm_clock_drop": 0.0066,
+    "throttle_reasons": [
+      "sw_power_cap"
+    ],
+    "telemetry_available": true
+  },
+  "profile": "balanced",
+  "command": "/home/masaya/src/llama.cpp/build/bin/llama-server -m /home/masaya/models/bench20260930/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf -ngl 99 -c 33344 -ctk f16 -ctv f16 -b 1024 -ub 256 -np 1 -fa on --jinja",
+  "vram_peak_mb": 17081,
+  "sm_clock_min_mhz": 1875.0,
+  "power_max_w": 129.11,
+  "gpu_index": 0
+}
