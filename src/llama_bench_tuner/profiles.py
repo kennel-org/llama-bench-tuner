@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from .measure import BenchPoint, point_command
+from .measure import BenchPoint, model_size_bytes, point_command
 from .optuna_mo import SCORE_WEIGHTS, use_case_score
 from .pareto import pareto_by_group, usable_metrics
 from .schema import PIPELINE_SCHEMA_VERSION, environment_metadata
@@ -130,7 +130,7 @@ def build_profile(ctx: Context, name: str, pick: dict[str, Any], validation: dic
         "runtime": {"llama_bench": str(ctx.llama_bench), "driver_version": ctx.gpu.driver_version if ctx.gpu else None,
                     "llama_cpp_commit": ",".join(validation.get("runtime_commits") or []) or None,
                     "help_sha256": ctx.caps.help_sha256},
-        "model": {"path": str(ctx.model), "size_bytes": st.st_size if st else None,
+        "model": {"path": str(ctx.model), "size_bytes": model_size_bytes(ctx.model),
                   "mtime_ns": st.st_mtime_ns if st else None, "quant": quant,
                   "quant_source": "filename" if quant else None},
         "context": e["depth"], "server_context": n_ctx,

@@ -7,6 +7,7 @@ construction, failure classification, telemetry and result naming live in one pl
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -76,6 +77,26 @@ class BenchPoint:
         return cls(**{k: v for k, v in data.items() if k in known})
 
 
+_SPLIT = re.compile(r"^(?P<stem>.+)-(?P<idx>\d{5})-of-(?P<n>\d{5})\.gguf$")
+
+
+def model_size_bytes(model: Path) -> Optional[int]:
+    """Size of the model artifact; sums every shard of a split GGUF (``-00001-of-00002.gguf``)."""
+
+    if not model.exists():
+        return None
+    match = _SPLIT.match(model.name)
+    if not match:
+        return model.stat().st_size
+    total = 0
+    for i in range(1, int(match["n"]) + 1):
+        shard = model.with_name(f"{match['stem']}-{i:05d}-of-{match['n']}.gguf")
+        if not shard.exists():
+            return None  # incomplete set: do not report a misleading partial size
+        total += shard.stat().st_size
+    return total
+
+
 def point_command(llama_bench: Path, model: Path, point: BenchPoint) -> list[str]:
     spec = LlamaBenchCommand(
         llama_bench=llama_bench, model=model, threads=point.threads, ngl=point.ngl, batch=point.batch,
@@ -138,7 +159,7 @@ class Measurer:
             host=env["host"], gpu=env["gpu"] or (self.gpu.name if self.gpu else ""),
             gpu_connection=env["gpu_connection"], platform=env["platform"], python=env["python"],
             backend="llama.cpp/llama-bench", llama_bench=str(self.llama_bench), model=str(self.model),
-            model_size_bytes=self.model.stat().st_size if self.model.exists() else None,
+            model_size_bytes=model_size_bytes(self.model),
             context=point.depth + point.prompt + point.ngen, context_depth=point.depth,
             prompt_tokens=point.prompt, generated_tokens=point.ngen, batch=point.batch,
             ubatch=point.ubatch, kv_type=point.kv, kv_type_k=point.kv, kv_type_v=point.kv,

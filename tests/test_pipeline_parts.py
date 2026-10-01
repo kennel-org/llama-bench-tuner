@@ -421,3 +421,16 @@ class RetryTests(unittest.TestCase):
             self.assertEqual(row["status"], "oom")
             self.assertEqual(len(calls), 1)
             self.assertIsNone(row["attempt_history"])
+
+
+class SplitModelTests(unittest.TestCase):
+    def test_split_gguf_size_sums_all_shards_and_never_reports_partial(self):
+        from llama_bench_tuner.measure import model_size_bytes
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "m-00001-of-00002.gguf").write_bytes(b"a" * 10)
+            self.assertIsNone(model_size_bytes(root / "m-00001-of-00002.gguf"))  # shard 2 missing
+            (root / "m-00002-of-00002.gguf").write_bytes(b"b" * 5)
+            self.assertEqual(model_size_bytes(root / "m-00001-of-00002.gguf"), 15)
+            (root / "single.gguf").write_bytes(b"c" * 7)
+            self.assertEqual(model_size_bytes(root / "single.gguf"), 7)
