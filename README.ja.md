@@ -242,6 +242,23 @@ uv run llama-tune-pipeline all \
 * Optuna は多目的 study で `trial.report()` / `should_prune()` を使えないため、多目的モードでは cheap な depth 0 段階で `PrunePolicy` により prune（cheap 指標は最終指標と別保存）。
 * 既存 CLI と CSV 列は不変。pipeline の結果は別 schema（`PIPELINE_RESULT_FIELDS`）。
 
+### 5. サーバ経由の測定: 実 TTFT・投機デコード（MTP）・soak（`server`, `soak` ステージ）
+
+`llama-bench` には TTFT も投機デコードの option も無いため、任意の 2 ステージで **profile 自身のコマンドで実際の `llama-server` を起動**して測ります
+（`llama-server` は `llama-bench` と同じディレクトリに必要）。profile JSON に測定値を追記するだけで、profile の選び直しはしません。
+
+```bash
+uv run llama-tune-pipeline server --llama-bench ... --model ... --name my-run --gpu-index 0 \
+  --server-sizes 4k,16k,32k --server-reps 3 --spec-compare      # 実測 TTFT / pp / tg、+ MTP 比較
+uv run llama-tune-pipeline soak --llama-bench ... --model ... --name my-run --gpu-index 0 \
+  --soak-profile long --soak-minutes 20 --soak-window 30       # 長時間 decode + GPU 時系列 + 判定
+```
+
+* プロンプトは毎回ユニーク（tokenizer で長さ調整、`cache_prompt:false`）。prefix cache で TTFT が過小評価されない。`ttft_kind=measured`。
+* **MTP**: `llama-server --help` に `--spec-type` がある場合のみ試行。MTP ヘッドが無いモデルは `inactive` / `failed_to_start`。全サイズで +10 % 以上のときだけ profile に `llama_server_mtp` を追加。
+  測定プロンプトは「数を数える」予測しやすい文章なので、**採択率・高速化は合成負荷での上限寄りの値**（チャット/コーディングの保証ではない）。
+* **soak 判定**: 熱/電力ブレーキの throttle bit なし（`sw_power_cap` 単独は熱ではない）、SM クロック低下 10 % 以内、先頭と末尾の窓で decode 速度の低下 10 % 以内。GPU telemetry が無い場合は速度のみの判定で `telemetry_available: false`。
+
 ## Tips
 
 - `--ub-ratio` でバッチサイズから自動的にマイクロバッチ（`ub = batch / ratio`）を算出できます。

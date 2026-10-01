@@ -259,6 +259,31 @@ Design rules worth knowing:
   cheap depth-0 stage (`PrunePolicy`); cheap metrics are kept separate from final metrics.
 * The legacy CLIs and their CSV columns are unchanged; pipeline results use a separate schema (`PIPELINE_RESULT_FIELDS`).
 
+### 5. Server-based measurements: real TTFT, speculation (MTP), soak (`server`, `soak` stages)
+
+`llama-bench` has no TTFT and no speculative-decoding option, so two optional stages run the **real `llama-server` from a
+profile's own command** (the `llama-server` binary must sit beside `llama-bench`). They annotate the profile JSON; they never
+re-choose it.
+
+```bash
+# measured TTFT / pp / tg at several prompt sizes; add --spec-compare to also try --spec-type draft-mtp
+uv run llama-tune-pipeline server --llama-bench ... --model ... --name my-run --gpu-index 0 \
+  --server-sizes 4k,16k,32k --server-reps 3 --spec-compare
+# long decode with GPU time series (temperature, SM clock, power, throttle reasons) and an explicit verdict
+uv run llama-tune-pipeline soak --llama-bench ... --model ... --name my-run --gpu-index 0 \
+  --soak-profile long --soak-minutes 20 --soak-window 30
+```
+
+* Prompts are unique per request, tokenizer-calibrated and sent with `cache_prompt:false`, so TTFT is not understated by
+  prefix-cache reuse. Rows are `benchmark_kind=server`, `ttft_kind=measured`.
+* **Speculation:** only offered if `llama-server --help` lists the `--spec-type`; a model without a usable MTP head is reported as
+  `inactive`/`failed_to_start`. A `llama_server_mtp` command is added to the profile only if every size gains >= 10 %.
+  The measurement prompt asks the model to count (highly predictable text), so **acceptance and speed-up are an upper-bound style
+  estimate for this synthetic workload, not a promise for chat/coding traffic.**
+* **Soak verdict** (`pass`) requires: no thermal / power-brake throttle bit (`sw_power_cap` alone is not thermal), SM clock drop
+  <= 10 % and decode-speed drift >= -10 % between the first and last windows. Without GPU telemetry the verdict is speed-only
+  and says so (`telemetry_available: false`).
+
 ## Tips
 
 - Use `--ub-ratio` to derive micro-batch (`ub`) automatically from batch size (`batch / ratio`).
