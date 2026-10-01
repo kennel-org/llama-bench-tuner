@@ -24,13 +24,12 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Sequence
 
 from .capabilities import LlamaBenchCapabilities, probe_llama_bench
-from .command_builder import LlamaBenchCommand, build_llama_bench_command
-from .executor import ExecResult, gpu_env, run_monitored
+from .executor import ExecResult, run_monitored
 from .gpu_gate import wait_for_gpu
-from .parsing import extract_metrics_by_depth, parse_bench_csv
+from .measure import BenchPoint, Measurer, point_command
 from .pareto import pareto_by_group
-from .schema import PIPELINE_RESULT_FIELDS, PIPELINE_SCHEMA_VERSION, environment_metadata, pipeline_row
-from .status import BenchStatus, classify_bench_outcome
+from .schema import PIPELINE_RESULT_FIELDS, PIPELINE_SCHEMA_VERSION
+from .status import BenchStatus
 from .telemetry import GpuBackend, GpuInfo, detect_backend
 from .tune import _atomic_write_text, _file_identity, _load_json, benchmark_fingerprint
 
@@ -107,21 +106,6 @@ def case_key(kv: str, depth: int) -> str:
     return f"kv={kv},d={depth}"
 
 
-def unsupported_reason(cfg: CapacityConfig, caps: LlamaBenchCapabilities, kv: str, depth: int) -> str:
-    """Why a (kv, depth) must not be executed, from the ``--help`` probe. Empty = run it.
-
-    A failed probe never blocks execution: absence of evidence is not evidence of absence."""
-
-    if caps.error == "":
-        if depth > 0 and caps.flags.get("n_depth") is False:
-            return "llama-bench --help shows no -d/--n-depth"
-        if kv != "f16" and (caps.flags.get("cache_type_k") is False or caps.flags.get("cache_type_v") is False):
-            return "llama-bench --help shows no -ctk/-ctv"
-    if kv != "f16" and cfg.flash_attn == 0:
-        return "quantized KV cache requires flash attention (llama.cpp constraint)"
-    return ""
-
-
 def evaluate_practical(*, completed: bool, tg: Optional[float], pp: Optional[float],
                        tg0: Optional[float], pp0: Optional[float], wall_s: float,
                        vram_peak: Optional[int], vram_total: Optional[int],
@@ -151,65 +135,25 @@ def _ratio(value: Optional[float], base: Optional[float]) -> Optional[float]:
 
 
 # ---------------------------------------------------------------------------- one case
+def _point(cfg: CapacityConfig, kv: str, depth: int) -> BenchPoint:
+    return BenchPoint(kv=kv, depth=depth, ngl=cfg.ngl, batch=cfg.batch, ubatch=cfg.ubatch,
+                      flash_attn=cfg.flash_attn, prompt=cfg.prompt, ngen=cfg.ngen,
+                      reps=cfg.repetitions, threads=cfg.threads)
+
+
 def _command(cfg: CapacityConfig, kv: str, depth: int) -> list[str]:
-    spec = LlamaBenchCommand(
-        llama_bench=cfg.llama_bench, model=cfg.model, threads=cfg.threads, ngl=cfg.ngl,
-        batch=cfg.batch, ubatch=cfg.ubatch, prompt=cfg.prompt, ngen=cfg.ngen, mmap=None,
-        flash_attn=cfg.flash_attn, depth=depth, cache_type_k=kv, cache_type_v=kv,
-        repetitions=cfg.repetitions,
-    )
-    return build_llama_bench_command(spec)
+    return point_command(cfg.llama_bench, cfg.model, _point(cfg, kv, depth))
 
 
-def _base_row(cfg: CapacityConfig, kv: str, depth: int, gpu: Optional[GpuInfo],
-              gpu_index: Optional[int]) -> dict[str, Any]:
-    env = environment_metadata()
-    return pipeline_row(
-        stage="capacity", benchmark_kind="llama-bench", case_key=case_key(kv, depth),
-        host=env["host"], gpu=env["gpu"] or (gpu.name if gpu else ""),
-        gpu_connection=env["gpu_connection"], platform=env["platform"], python=env["python"],
-        backend="llama.cpp/llama-bench", llama_bench=str(cfg.llama_bench),
-        model=str(cfg.model),
-        model_size_bytes=cfg.model.stat().st_size if cfg.model.exists() else None,
-        context=depth + cfg.prompt + cfg.ngen, context_depth=depth,
-        prompt_tokens=cfg.prompt, generated_tokens=cfg.ngen, batch=cfg.batch, ubatch=cfg.ubatch,
-        kv_type=kv, kv_type_k=kv, kv_type_v=kv, flash_attn=cfg.flash_attn, ngl=cfg.ngl,
-        gpu_index=gpu_index, driver_version=gpu.driver_version if gpu else None,
-        vram_total_mb=gpu.memory_total_mib if gpu else None, attempts=1,
-    )
-
-
-def run_case(cfg: CapacityConfig, kv: str, depth: int, *, caps: LlamaBenchCapabilities,
-             backend: Optional[GpuBackend], gpu: Optional[GpuInfo], gpu_index: Optional[int],
-             raw_dir: Path, log_dir: Path, baselines: dict[str, dict[str, float]],
-             runner: Callable[..., ExecResult] = run_monitored) -> dict[str, Any]:
-    row = _base_row(cfg, kv, depth, gpu, gpu_index)
-    reason = unsupported_reason(cfg, caps, kv, depth)
-    if reason:
-        row.update(status=BenchStatus.UNSUPPORTED.value, success=False, capacity_ok=False,
-                   practical_candidate=False, error=reason, skip_reason=reason,
-                   practical_reason="unsupported", telemetry_status="not_run")
+def run_case(cfg: CapacityConfig, kv: str, depth: int, *, measurer: Measurer,
+             baselines: dict[str, dict[str, float]]) -> dict[str, Any]:
+    row = measurer.measure("capacity", _point(cfg, kv, depth))
+    if row["status"] == BenchStatus.UNSUPPORTED.value:
         return row
 
-    cmd = _command(cfg, kv, depth)
-    result = runner(cmd, timeout=cfg.per_run_timeout, backend=backend, gpu_index=gpu_index,
-                    env=gpu_env(backend, gpu_index))
-    tag = f"capacity_kv{kv}_d{depth}_p{cfg.prompt}_n{cfg.ngen}_ngl{cfg.ngl}_fa{cfg.flash_attn}"
-    csv_path = raw_dir / f"{tag}.csv"
-    err_path = log_dir / f"{tag}.stderr.txt"
-    csv_path.write_text(result.stdout)
-    if result.stderr.strip():
-        err_path.write_text(result.stderr)
-
-    rows = parse_bench_csv(result.stdout.splitlines())
-    metrics = extract_metrics_by_depth(rows).get(depth)
-    pp = metrics.pp_tps if metrics else None
-    tg = metrics.tg_tps if metrics else None
-    outcome = classify_bench_outcome(returncode=result.returncode, decode_tps=tg, stdout=result.stdout,
-                                     stderr=result.stderr, timed_out=result.timed_out)
-    status = outcome.status.value
-    completed = outcome.status is BenchStatus.SUCCESS
-
+    status = row["status"]
+    completed = status == BenchStatus.SUCCESS.value
+    pp, tg = row["pp_tps"], row["tg_tps"]
     base = baselines.get(kv) or baselines.get("f16") or {}
     tg0, pp0 = base.get("tg"), base.get("pp")
     if depth == 0 and completed:
@@ -220,25 +164,12 @@ def run_case(cfg: CapacityConfig, kv: str, depth: int, *, caps: LlamaBenchCapabi
     if completed and ((tg_ratio is not None and tg_ratio < crit.slowdown_tg_ratio)
                       or (pp_ratio is not None and pp_ratio < crit.slowdown_pp_ratio)):
         status = BenchStatus.SLOWDOWN.value
-    peaks = result.peaks
     practical, practical_reason = evaluate_practical(
         completed=completed and status == BenchStatus.SUCCESS.value, tg=tg, pp=pp, tg0=tg0, pp0=pp0,
-        wall_s=result.elapsed_s, vram_peak=peaks.vram_peak_mib, vram_total=row["vram_total_mb"], crit=crit)
-
-    build_commit = next((r.values.get("build_commit") for r in rows if r.values.get("build_commit")), None)
-    row.update(
-        status=status, success=completed, capacity_ok=completed, practical_candidate=practical,
-        practical_reason=practical_reason, error=outcome.error if not completed else "",
-        returncode=result.returncode, pp_tps=pp, tg_tps=tg, pp_ratio_vs_d0=pp_ratio, tg_ratio_vs_d0=tg_ratio,
-        wall_time_s=round(result.elapsed_s, 3), start=result.start_iso, end=result.end_iso,
-        vram_baseline_mb=peaks.vram_baseline_mib, vram_peak_mb=peaks.vram_peak_mib,
-        ram_peak_mb=peaks.ram_peak_mib, ram_peak_source=peaks.ram_peak_source,
-        temp_max_c=peaks.temp_max_c, sm_clock_min_mhz=peaks.sm_clock_min_mhz,
-        power_max_w=peaks.power_max_w, throttle_reasons=peaks.throttle_reasons,
-        telemetry_status=peaks.status, runtime_commit=build_commit,
-        csv=csv_path.relative_to(raw_dir.parent).as_posix(),
-        stderr=err_path.relative_to(log_dir.parent).as_posix() if err_path.exists() else "",
-    )
+        wall_s=row["wall_time_s"] or 0.0, vram_peak=row["vram_peak_mb"], vram_total=row["vram_total_mb"],
+        crit=crit)
+    row.update(status=status, practical_candidate=practical, practical_reason=practical_reason,
+               pp_ratio_vs_d0=pp_ratio, tg_ratio_vs_d0=tg_ratio)
     return row
 
 
@@ -369,6 +300,9 @@ def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend
     if not (resume and metadata.exists()):
         _atomic_write_text(metadata, json.dumps(meta, ensure_ascii=False, indent=2) + "\n")
 
+    measurer = Measurer(llama_bench=cfg.llama_bench, model=cfg.model, caps=caps, backend=backend, gpu=gpu,
+                        gpu_index=gpu_index, raw_dir=raw_dir, log_dir=log_root, timeout=cfg.per_run_timeout,
+                        runner=runner)
     cases = [(kv, depth) for kv in cfg.kv_types for depth in sorted(cfg.depths)]
     baselines: dict[str, dict[str, float]] = {}
     for r in rows:  # rebuild d0 baselines after a resume
@@ -382,7 +316,7 @@ def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend
         if key in done:
             continue
         if kv in failed_kv:
-            row = _base_row(cfg, kv, depth, gpu, gpu_index)
+            row = measurer.base_row("capacity", _point(cfg, kv, depth))
             row.update(status=BenchStatus.SKIPPED_AFTER_FAIL.value, success=False, capacity_ok=False,
                        practical_candidate=False, skip_reason="shallower depth already failed for this KV type",
                        error="", practical_reason="skipped_after_fail", telemetry_status="not_run")
@@ -391,7 +325,7 @@ def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend
                                 wait=cfg.wait_for_gpu, timeout_s=cfg.gpu_wait_timeout, poll_s=cfg.gpu_poll_s,
                                 **({"sleep": sleep} if sleep else {}))
             if not gate.ok:
-                row = _base_row(cfg, kv, depth, gpu, gpu_index)
+                row = measurer.base_row("capacity", _point(cfg, kv, depth))
                 row.update(status=BenchStatus.GPU_BUSY.value, success=False, capacity_ok=False,
                            practical_candidate=False, error=gate.reason, telemetry_status="not_run",
                            skip_reason="; ".join(gate.active_processes) or None)
@@ -400,8 +334,7 @@ def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend
                 exit_code = 3
                 break
             print(f"RUN {key}: {shlex.join(_command(cfg, kv, depth))}", flush=True)
-            row = run_case(cfg, kv, depth, caps=caps, backend=backend, gpu=gpu, gpu_index=gpu_index,
-                           raw_dir=raw_dir, log_dir=log_root, baselines=baselines, runner=runner)
+            row = run_case(cfg, kv, depth, measurer=measurer, baselines=baselines)
             if cfg.stop_after_fail and row["status"] in _FAILURE_STATUSES:
                 failed_kv.add(kv)
         rows.append(row)
@@ -425,11 +358,9 @@ def run_capacity(cfg: CapacityConfig, run_root: Path, log_root: Path, *, backend
 
 
 # --------------------------------------------------------------------------------- CLI
-def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="Capacity / compatibility sweep: context depth x KV type, one process per point")
-    p.add_argument("--llama-bench", type=Path, required=True)
-    p.add_argument("--model", type=Path, required=True)
+def add_capacity_options(p: argparse.ArgumentParser) -> None:
+    """Options shared by ``llama-tune-capacity`` and ``llama-tune-pipeline``."""
+
     p.add_argument("--depths", nargs="+", default=[",".join(map(str, DEFAULT_DEPTHS))],
                    help="context depths; accepts 4096 or 4k/128K/1m. Extended: 262k 384k 512k")
     p.add_argument("--kv", nargs="+", default=[",".join(DEFAULT_KV)], help="KV cache types (K and V set together)")
@@ -441,7 +372,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p.add_argument("--ngen", type=int, default=64)
     p.add_argument("--reps", type=int, default=1, help="llama-bench -r (repeats inside one process)")
     p.add_argument("--threads", type=int, default=None)
-    p.add_argument("--per-run-timeout", type=float, default=1500.0, help="seconds per (kv,depth) process")
+    p.add_argument("--per-run-timeout", type=float, default=1500.0, help="seconds per benchmark process")
     p.add_argument("--gpu-index", type=int, default=None, help="measure exactly this GPU (required on multi-GPU hosts)")
     p.add_argument("--min-free-vram-gib", type=float, default=None, help="require this much free VRAM before each run")
     p.add_argument("--wait-for-gpu", action="store_true", help="poll until the GPU is free instead of stopping")
@@ -453,6 +384,14 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p.add_argument("--pp-ratio", type=float, default=PracticalCriteria.pp_ratio)
     p.add_argument("--max-wall", type=float, default=None)
     p.add_argument("--vram-margin-mib", type=int, default=PracticalCriteria.vram_margin_mib)
+
+
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Capacity / compatibility sweep: context depth x KV type, one process per point")
+    p.add_argument("--llama-bench", type=Path, required=True)
+    p.add_argument("--model", type=Path, required=True)
+    add_capacity_options(p)
     p.add_argument("--out-dir", type=Path, default=Path("outfile"))
     p.add_argument("--tmp-dir", type=Path, default=Path("tmp"))
     p.add_argument("--run-dir", type=Path, default=None, help="stable run directory (required with --resume)")

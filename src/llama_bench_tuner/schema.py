@@ -146,6 +146,8 @@ PIPELINE_EXTRA_FIELDS = [
     "pp_ratio_vs_d0",
     "tg_ratio_vs_d0",
     "ttft_kind",              # estimated_from_pp | measured | null
+    "trial_number",           # optuna trial this row belongs to
+    "step",                   # cheap | final | rep<N> | soak
     "capacity_ok",
     "practical_candidate",
     "practical_reason",
