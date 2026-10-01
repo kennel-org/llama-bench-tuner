@@ -254,3 +254,31 @@ class ParetoSchemaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CandidateSelectionTests(unittest.TestCase):
+    def test_every_source_depth_contributes_instead_of_the_shallowest_winning(self):
+        import json
+        from llama_bench_tuner.measure import BenchPoint
+        from llama_bench_tuner.validation import collect_candidates
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            base = BenchPoint().to_dict()
+
+            def study(depth, rows):
+                d = root / "optuna" / f"d{depth}"
+                d.mkdir(parents=True)
+                (d / "optuna.json").write_text(json.dumps({
+                    "depth": depth, "base": base, "space": {},
+                    "best": [{"params": {"kv": kv, "batch": b}, "attrs": {"tg_tps": tg, "pp_tps": pp, "vram_peak_mb": v}}
+                             for kv, b, tg, pp, v in rows]}))
+            # at 32K every config is much faster than at 128K; a global ranking would drop all 128K ones
+            study(32768, [("f16", 2048, 18, 700, 17000), ("q8_0", 2048, 17.5, 690, 16000),
+                          ("q4_0", 2048, 17.2, 680, 15500)])
+            study(131072, [("q4_0", 4096, 12, 390, 18000), ("q4_0", 1024, 11.5, 380, 17900)])
+            chosen = collect_candidates(root, top_k=4)
+            sources = [c["source"] for c in chosen]
+            self.assertIn("optuna@131072", sources)
+            self.assertIn("optuna@32768", sources)
+            self.assertEqual(len({c["point"].config_key() for c in chosen}), 4)

@@ -64,15 +64,37 @@ def collect_candidates(run_root: Path, top_k: int) -> list[dict[str, Any]]:
     if not cands:
         raise SystemExit("[FATAL] no candidates: run the grid and/or optuna stage first")
 
-    def rank(key: str, reverse: bool) -> dict[str, int]:
-        have = sorted((c for c in cands if c[key] is not None), key=lambda c: c[key], reverse=reverse)
-        return {c["point"].config_key(): i for i, c in enumerate(have)}
-
-    ranks = [rank("tg", True), rank("pp", True), rank("vram", False)]
+    # Throughput at different depths is not comparable (tg falls with depth), so candidates are ranked
+    # only against others from the same source (e.g. optuna@32768) and then interleaved round-robin:
+    # every target depth contributes its best configs instead of the shallowest study winning by default.
+    groups: dict[str, list[dict[str, Any]]] = {}
     for c in cands:
-        positions = [r[c["point"].config_key()] for r in ranks if c["point"].config_key() in r]
-        c["rank"] = sum(positions) / len(positions) if positions else 1e9
-    return sorted(cands, key=lambda c: c["rank"])[:top_k]
+        groups.setdefault(c["source"], []).append(c)
+    for members in groups.values():
+        ranks = [_rank(members, "tg", True), _rank(members, "pp", True), _rank(members, "vram", False)]
+        for c in members:
+            positions = [r[c["point"].config_key()] for r in ranks if c["point"].config_key() in r]
+            c["rank"] = sum(positions) / len(positions) if positions else 1e9
+        members.sort(key=lambda c: c["rank"])
+    chosen: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    order = sorted(groups)  # deterministic
+    index = 0
+    while len(chosen) < top_k and any(index < len(groups[g]) for g in order):
+        for g in order:
+            if index < len(groups[g]):
+                c = groups[g][index]
+                key = c["point"].config_key()
+                if key not in seen and len(chosen) < top_k:
+                    seen.add(key)
+                    chosen.append(c)
+        index += 1
+    return chosen
+
+
+def _rank(members: list[dict[str, Any]], key: str, reverse: bool) -> dict[str, int]:
+    have = sorted((c for c in members if c[key] is not None), key=lambda c: c[key], reverse=reverse)
+    return {c["point"].config_key(): i for i, c in enumerate(have)}
 
 
 def summarise(runs: list[dict[str, Any]], depth: int, reps: int, d0_pp: Optional[float],
