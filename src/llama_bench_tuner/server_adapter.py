@@ -153,11 +153,18 @@ def unique_prompt(session: ServerSession, target_tokens: int, seed: int,
     return text, n
 
 
-def stream_request(session: ServerSession, prompt: str, max_tokens: int, *, timeout: float = 3600.0) -> dict[str, Any]:
-    """One streamed chat completion; returns timing, usage, server timings and per-chunk arrival times."""
+def stream_request(session: ServerSession, prompt: str, max_tokens: int, *, timeout: float = 3600.0,
+                   cache_prompt: bool = False, extra_body: Optional[dict] = None,
+                   capture_text: bool = False) -> dict[str, Any]:
+    """One streamed chat completion; returns timing, usage, server timings and per-chunk arrival times.
 
-    body = {"model": "x", "stream": True, "max_tokens": max_tokens, "temperature": 0, "cache_prompt": False,
-            "stream_options": {"include_usage": True}, "messages": [{"role": "user", "content": prompt}]}
+    ``cache_prompt=False`` (default) forces a full prefill so TTFT is honest; retrieval-style callers that ask
+    several questions about one long document pass ``True`` for the follow-ups. ``capture_text`` adds the
+    answer (``text``) and reasoning (``reasoning_text``) strings to the result."""
+
+    body = {"model": "x", "stream": True, "max_tokens": max_tokens, "temperature": 0, "cache_prompt": cache_prompt,
+            "stream_options": {"include_usage": True}, "messages": [{"role": "user", "content": prompt}],
+            **(extra_body or {})}
     req = urllib.request.Request(session.base + "/v1/chat/completions", json.dumps(body).encode(),
                                  {"Content-Type": "application/json"})
     t0 = time.perf_counter()
@@ -165,6 +172,8 @@ def stream_request(session: ServerSession, prompt: str, max_tokens: int, *, time
     stamps: list[float] = []
     usage = timings = None
     reasoning = answer = 0
+    text_parts: list[str] = []
+    reasoning_parts: list[str] = []
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         for raw in resp:
             line = raw.decode().strip()
@@ -182,9 +191,16 @@ def stream_request(session: ServerSession, prompt: str, max_tokens: int, *, time
                     stamps.append(now)
                     reasoning += len(rc)
                     answer += len(c)
+                    if capture_text:
+                        text_parts.append(c)
+                        reasoning_parts.append(rc)
     total = time.perf_counter() - t0
-    return {"ttft_s": ttft, "total_s": total, "usage": usage, "timings": timings, "stamps": stamps,
-            "reasoning_chars": reasoning, "answer_chars": answer}
+    out = {"ttft_s": ttft, "total_s": total, "usage": usage, "timings": timings, "stamps": stamps,
+           "reasoning_chars": reasoning, "answer_chars": answer}
+    if capture_text:
+        out["text"] = "".join(text_parts)
+        out["reasoning_text"] = "".join(reasoning_parts)
+    return out
 
 
 def _timing(r: dict[str, Any], key: str) -> Optional[float]:
