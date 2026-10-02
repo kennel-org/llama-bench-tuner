@@ -71,6 +71,8 @@ class ServerSession:
     startup_timeout: float = 900.0
     record_series: bool = False
     poll_interval: float = 1.0
+    env_override: Optional[dict] = None
+    """Extra environment for the server process (e.g. CUDA_VISIBLE_DEVICES=0,1 for a multi-GPU run)."""
     port: int = 0
     proc: Optional[subprocess.Popen] = None
     monitor: Optional[PeakMonitor] = None
@@ -86,7 +88,7 @@ class ServerSession:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         self._log = self.log_path.open("w")
         self.proc = subprocess.Popen(argv, stdout=self._log, stderr=subprocess.STDOUT,
-                                     env=gpu_env(self.backend, self.gpu_index), start_new_session=True)
+                                     env={**gpu_env(self.backend, self.gpu_index), **(self.env_override or {})}, start_new_session=True)
         self.monitor = PeakMonitor(self.backend, self.gpu_index, self.proc.pid, self.poll_interval,
                                    record_series=self.record_series)
         self.monitor.start()
