@@ -1,0 +1,27 @@
+{
+  "status_counts": {
+    "capacity": {
+      "success": 20,
+      "oom": 1
+    },
+    "grid": {
+      "success": 12
+    },
+    "optuna": {
+      "success": 12
+    },
+    "validation": {
+      "success": 26
+    }
+  },
+  "examples": [
+    {
+      "stage": "capacity",
+      "case": "kv=f16,d=131072,ngl=99,b=2048,ub=512,fa=1,p=512,n=64",
+      "status": "oom",
+      "error": "llama-bench reported out of memory",
+      "csv": "raw/capacity_kv=f16_d=131072_ngl=99_b=2048_ub=512_fa=1_p=512_n=64.csv",
+      "stderr": "capacity/capacity_kv=f16_d=131072_ngl=99_b=2048_ub=512_fa=1_p=512_n=64.stderr.txt"
+    }
+  ]
+}

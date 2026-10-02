@@ -1,0 +1,147 @@
+{
+  "profile": "balanced",
+  "available": true,
+  "pipeline_schema_version": 1,
+  "generated": "2026-10-02T00:37:51+00:00",
+  "host": "x1ai",
+  "gpu": "Tesla P40 24GB",
+  "gpu_index": 1,
+  "gpu_connection": "USB4/Thunderbolt eGPU dock (PCIe 8GT/s x4)",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "runtime": {
+    "llama_bench": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-bench",
+    "driver_version": "580.159.03",
+    "llama_cpp_commit": "7fe450e19",
+    "help_sha256": "6f7c0291a6a381b8c5574e2378cbd0e9e8cf92774fa278658d0c1dc866020dc7"
+  },
+  "model": {
+    "path": "/home/masaya/models/ukisai_swift15/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf",
+    "size_bytes": 15475951296,
+    "mtime_ns": 1790768944674135786,
+    "quant": "IQ4_XS",
+    "quant_source": "filename"
+  },
+  "context": 32768,
+  "server_context": 33344,
+  "context_note": "validated with `context` tokens already in the KV cache plus a 512-token prompt and 64 generated tokens, i.e. n_ctx = 33344; the llama-server command uses -c 33344",
+  "kv_type_k": "f16",
+  "kv_type_v": "f16",
+  "batch": 1024,
+  "ubatch": 512,
+  "flash_attn": 1,
+  "ngl": 99,
+  "n_cpu_moe": null,
+  "split_mode": null,
+  "mtp_speculation": {
+    "requested": true,
+    "status": "active",
+    "spec_type": "draft-mtp",
+    "draft_n_max": 3,
+    "sizes": [
+      {
+        "target_tokens": 4096,
+        "tg_base": 12.963638821353438,
+        "tg_spec": 19.947090937981663,
+        "tg_speedup": 1.5386953626882311,
+        "pp_ratio": 0.9693377267354354,
+        "ttft_base_s": 17.19781785493251,
+        "ttft_spec_s": 17.74154241452925,
+        "draft_acceptance": 0.5483584738243124
+      },
+      {
+        "target_tokens": 16384,
+        "tg_base": 12.31805571351844,
+        "tg_spec": 18.85210458460383,
+        "tg_speedup": 1.5304448220602382,
+        "pp_ratio": 0.9714064501558086,
+        "ttft_base_s": 73.5621212265105,
+        "ttft_spec_s": 75.76718006597366,
+        "draft_acceptance": 0.5721126468913392
+      }
+    ],
+    "vram_peak_mb": 17569,
+    "note": null
+  },
+  "expected": {
+    "pp_tps": 151.263532,
+    "tg_tps": 11.533244,
+    "tg_cv": 0.0002,
+    "ttft_est_s": 169.023,
+    "ttft_kind": "estimated_from_pp",
+    "vram_peak_mb": 16923,
+    "vram_total_mb": 23040,
+    "ram_peak_mb": 15002,
+    "validated_reps": 3,
+    "temp_max_c": 63.0,
+    "sm_clock_min_mhz": 1531.0,
+    "throttle_reasons": []
+  },
+  "soak": null,
+  "commands": {
+    "llama_server": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-server -m /home/masaya/models/ukisai_swift15/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf -ngl 99 -c 33344 -ctk f16 -ctv f16 -b 1024 -ub 512 -np 1 -fa on --jinja",
+    "llama_server_binary_found": true,
+    "llama_bench_reproduce": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-bench -m /home/masaya/models/ukisai_swift15/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf -ngl 99 -b 1024 -ub 512 -p 512 -n 64 -o csv -v -fa 1 -d 32768 -ctk f16 -ctv f16 -r 3",
+    "llama_server_mtp": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-server -m /home/masaya/models/ukisai_swift15/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf -ngl 99 -c 33344 -ctk f16 -ctv f16 -b 1024 -ub 512 -np 1 -fa on --jinja --spec-type draft-mtp --spec-draft-n-max 3"
+  },
+  "notes": [
+    "llama-server flags are taken from the validated llama-bench configuration; the server binary's --help is probed only for the flash-attention syntax.",
+    "MTP / speculative decoding is not part of this profile (llama-bench has no such option)."
+  ],
+  "evidence": {
+    "validation": "outfile/pipeline/x1ai-p40-gpu1-swift15/validation/validation.json",
+    "capacity": "outfile/pipeline/x1ai-p40-gpu1-swift15/capacity/capacity.json",
+    "criteria": {
+      "min_tg_tps": 6.0,
+      "tg_ratio": 0.5,
+      "pp_ratio": 0.2,
+      "max_wall_s": null,
+      "vram_margin_mib": 512,
+      "slowdown_tg_ratio": 0.25,
+      "slowdown_pp_ratio": 0.1
+    },
+    "reps": 3,
+    "selection": "best balanced score among practical entries at depth 32768 (2 eligible); requested 32768"
+  },
+  "measured_server": {
+    "ttft_kind": "measured",
+    "reps": 2,
+    "max_tokens": 128,
+    "runtime_build_info": "b11146-7fe450e19",
+    "sizes": [
+      {
+        "target_tokens": 4096,
+        "ttft_s": 17.19781785493251,
+        "pp_tps": 248.23949355171467,
+        "tg_tps": 12.963638821353438,
+        "total_s": 26.991165996994823
+      },
+      {
+        "target_tokens": 16384,
+        "ttft_s": 73.5621212265105,
+        "pp_tps": 225.3986100615581,
+        "tg_tps": 12.31805571351844,
+        "total_s": 83.87256759998854
+      }
+    ],
+    "vram_peak_mb": 16595,
+    "ram_peak_mb": 15008
+  },
+  "soak_server": {
+    "duration_s": 917.5,
+    "requests": 22,
+    "tg_first_tps": 11.93,
+    "tg_last_tps": 12.030000000000001,
+    "temp_max_c": 58.0,
+    "sm_clock_min_mhz": 1531.0,
+    "power_max_w": 235.7,
+    "verdict": {
+      "pass": true,
+      "criteria": "no thermal/power-brake throttle bit, SM clock drop <= 10 %, tg drift >= -10 %",
+      "thermal_throttle_seen": false,
+      "tg_drift": 0.0084,
+      "sm_clock_drop": 0.0,
+      "throttle_reasons": [],
+      "telemetry_available": true
+    }
+  }
+}

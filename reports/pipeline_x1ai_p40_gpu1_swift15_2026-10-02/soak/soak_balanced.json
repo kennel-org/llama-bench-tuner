@@ -1,0 +1,325 @@
+{
+  "duration_s": 917.5,
+  "requests": 22,
+  "window_s": 30.0,
+  "tg_first_tps": 11.93,
+  "tg_last_tps": 12.030000000000001,
+  "temp_max_c": 58.0,
+  "windows": [
+    {
+      "t0": 3.0,
+      "t1": 33.0,
+      "tg_tps": 13.17,
+      "temp_c": 56.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 206.68,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 33.0,
+      "t1": 63.0,
+      "tg_tps": 11.83,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 194.41,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 63.0,
+      "t1": 93.0,
+      "tg_tps": 11.93,
+      "temp_c": 56.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 174.64,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 93.0,
+      "t1": 123.0,
+      "tg_tps": 13.17,
+      "temp_c": 56.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 206.07,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 123.0,
+      "t1": 153.0,
+      "tg_tps": 11.93,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 214.93,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 153.0,
+      "t1": 183.0,
+      "tg_tps": 11.9,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 205.6,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 183.0,
+      "t1": 213.0,
+      "tg_tps": 11.9,
+      "temp_c": 56.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 173.25,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 213.0,
+      "t1": 243.0,
+      "tg_tps": 13.13,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 205.4,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 243.0,
+      "t1": 273.0,
+      "tg_tps": 11.87,
+      "temp_c": 58.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 235.7,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 273.0,
+      "t1": 303.0,
+      "tg_tps": 11.93,
+      "temp_c": 56.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 181.66,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 303.0,
+      "t1": 333.0,
+      "tg_tps": 13.17,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 214.5,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 333.0,
+      "t1": 363.0,
+      "tg_tps": 11.87,
+      "temp_c": 58.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 211.83,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 363.0,
+      "t1": 393.0,
+      "tg_tps": 11.9,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 215.89,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 393.0,
+      "t1": 423.0,
+      "tg_tps": 11.9,
+      "temp_c": 56.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 181.5,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 423.0,
+      "t1": 453.0,
+      "tg_tps": 13.23,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 214.62,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 453.0,
+      "t1": 483.0,
+      "tg_tps": 11.83,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 197.18,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 483.0,
+      "t1": 513.0,
+      "tg_tps": 11.87,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 210.44,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 513.0,
+      "t1": 543.0,
+      "tg_tps": 12.67,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 173.24,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 543.0,
+      "t1": 573.0,
+      "tg_tps": 12.3,
+      "temp_c": 58.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 203.29,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 573.0,
+      "t1": 603.0,
+      "tg_tps": 11.83,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 213.79,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 603.0,
+      "t1": 633.0,
+      "tg_tps": 11.9,
+      "temp_c": 56.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 174.13,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 633.0,
+      "t1": 663.0,
+      "tg_tps": 13.2,
+      "temp_c": 58.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 212.77,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 663.0,
+      "t1": 693.0,
+      "tg_tps": 11.83,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 178.09,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 693.0,
+      "t1": 723.0,
+      "tg_tps": 11.87,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 204.65,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 723.0,
+      "t1": 753.0,
+      "tg_tps": 12.13,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 174.52,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 753.0,
+      "t1": 783.0,
+      "tg_tps": 12.97,
+      "temp_c": 58.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 201.4,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 783.0,
+      "t1": 813.0,
+      "tg_tps": 11.83,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 214.25,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 813.0,
+      "t1": 843.0,
+      "tg_tps": 11.93,
+      "temp_c": 56.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 177.37,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 843.0,
+      "t1": 873.0,
+      "tg_tps": 13.17,
+      "temp_c": 58.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 212.39,
+      "throttle_mask": 0.0
+    },
+    {
+      "t0": 873.0,
+      "t1": 903.0,
+      "tg_tps": 11.8,
+      "temp_c": 57.0,
+      "sm_clock_mhz": 1531.0,
+      "sm_clock_min_mhz": 1531.0,
+      "power_w": 212.41,
+      "throttle_mask": 0.0
+    }
+  ],
+  "verdict": {
+    "pass": true,
+    "criteria": "no thermal/power-brake throttle bit, SM clock drop <= 10 %, tg drift >= -10 %",
+    "thermal_throttle_seen": false,
+    "tg_drift": 0.0084,
+    "sm_clock_drop": 0.0,
+    "throttle_reasons": [],
+    "telemetry_available": true
+  },
+  "profile": "balanced",
+  "command": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-server -m /home/masaya/models/ukisai_swift15/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf -ngl 99 -c 33344 -ctk f16 -ctv f16 -b 1024 -ub 512 -np 1 -fa on --jinja",
+  "vram_peak_mb": 16589,
+  "sm_clock_min_mhz": 1531.0,
+  "power_max_w": 235.7,
+  "gpu_index": 1
+}

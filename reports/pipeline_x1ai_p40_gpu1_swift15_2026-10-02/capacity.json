@@ -1,0 +1,452 @@
+{
+  "started": "2026-10-01T20:38:32+00:00",
+  "benchmark_fingerprint": "2b12559842dec904a4ce289b9f78600f6343ba695e330447495672b23123b34a",
+  "benchmark_definition": {
+    "stage": "capacity",
+    "llama_bench": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-bench",
+    "llama_bench_identity": {
+      "exists": true,
+      "size": 17864,
+      "mtime_ns": 1790763732105308798,
+      "sha256": "75bfb86abad15b954f00fcf219b953197737c303e64558cc8f4caef55496131d"
+    },
+    "model": "/home/masaya/models/ukisai_swift15/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf",
+    "model_identity": {
+      "exists": true,
+      "size": 15475951296,
+      "mtime_ns": 1790768944674135786
+    },
+    "depths": [
+      0,
+      4096,
+      8192,
+      16384,
+      32768,
+      65536,
+      131072
+    ],
+    "kv_types": [
+      "f16",
+      "q8_0",
+      "q4_0"
+    ],
+    "ngl": 99,
+    "batch": 2048,
+    "ubatch": 512,
+    "flash_attn": 1,
+    "prompt": 512,
+    "ngen": 64,
+    "repetitions": 1,
+    "threads": null,
+    "n_cpu_moe": null,
+    "gpu_index": 1,
+    "per_run_timeout": 2400.0,
+    "retry_aborts": 1,
+    "criteria": {
+      "min_tg_tps": 10.0,
+      "tg_ratio": 0.5,
+      "pp_ratio": 0.3,
+      "max_wall_s": null,
+      "vram_margin_mib": 512,
+      "slowdown_tg_ratio": 0.25,
+      "slowdown_pp_ratio": 0.1
+    }
+  },
+  "capabilities": {
+    "binary": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-bench",
+    "returncode": 0,
+    "help_sha256": "6f7c0291a6a381b8c5574e2378cbd0e9e8cf92774fa278658d0c1dc866020dc7",
+    "flags": {
+      "mmap": false,
+      "n_depth": true,
+      "cache_type_k": true,
+      "cache_type_v": true,
+      "n_cpu_moe": true,
+      "split_mode": true,
+      "device": true,
+      "main_gpu": true,
+      "tensor_split": true,
+      "load_mode": true,
+      "flash_attn": true
+    },
+    "error": ""
+  },
+  "gpu": {
+    "index": 1,
+    "name": "Tesla P40",
+    "memory_total_mib": 23040,
+    "driver_version": "580.159.03",
+    "backend": "nvidia-smi"
+  },
+  "gpu_index": 1,
+  "gpu_note": null,
+  "runtime": {
+    "llama_bench_help_sha256": "6f7c0291a6a381b8c5574e2378cbd0e9e8cf92774fa278658d0c1dc866020dc7"
+  },
+  "elapsed_seconds": 5164.285181,
+  "wall_clock": "1:26:04",
+  "exit_code": 0,
+  "pipeline_schema_version": 1,
+  "stage": "capacity",
+  "criteria": {
+    "min_tg_tps": 10.0,
+    "tg_ratio": 0.5,
+    "pp_ratio": 0.3,
+    "max_wall_s": null,
+    "vram_margin_mib": 512,
+    "slowdown_tg_ratio": 0.25,
+    "slowdown_pp_ratio": 0.1
+  },
+  "per_kv": {
+    "f16": {
+      "capacity_max_depth": 65536,
+      "practical_candidate_max_depth": 65536,
+      "first_failure": {
+        "depth": 131072,
+        "status": "oom",
+        "error": "llama-bench reported out of memory"
+      },
+      "unsupported": false,
+      "note": "practical_candidate needs repeated validation (stage 'validation') before it is final"
+    },
+    "q8_0": {
+      "capacity_max_depth": 131072,
+      "practical_candidate_max_depth": 32768,
+      "first_failure": null,
+      "unsupported": false,
+      "note": "practical_candidate needs repeated validation (stage 'validation') before it is final"
+    },
+    "q4_0": {
+      "capacity_max_depth": 131072,
+      "practical_candidate_max_depth": 16384,
+      "first_failure": null,
+      "unsupported": false,
+      "note": "practical_candidate needs repeated validation (stage 'validation') before it is final"
+    }
+  },
+  "survivors": [
+    {
+      "kv": "f16",
+      "depth": 0
+    },
+    {
+      "kv": "f16",
+      "depth": 4096
+    },
+    {
+      "kv": "f16",
+      "depth": 8192
+    },
+    {
+      "kv": "f16",
+      "depth": 16384
+    },
+    {
+      "kv": "f16",
+      "depth": 32768
+    },
+    {
+      "kv": "f16",
+      "depth": 65536
+    },
+    {
+      "kv": "q8_0",
+      "depth": 0
+    },
+    {
+      "kv": "q8_0",
+      "depth": 4096
+    },
+    {
+      "kv": "q8_0",
+      "depth": 8192
+    },
+    {
+      "kv": "q8_0",
+      "depth": 16384
+    },
+    {
+      "kv": "q8_0",
+      "depth": 32768
+    },
+    {
+      "kv": "q4_0",
+      "depth": 0
+    },
+    {
+      "kv": "q4_0",
+      "depth": 4096
+    },
+    {
+      "kv": "q4_0",
+      "depth": 8192
+    },
+    {
+      "kv": "q4_0",
+      "depth": 16384
+    }
+  ],
+  "capacity_survivors": [
+    {
+      "kv": "f16",
+      "depth": 0
+    },
+    {
+      "kv": "f16",
+      "depth": 4096
+    },
+    {
+      "kv": "f16",
+      "depth": 8192
+    },
+    {
+      "kv": "f16",
+      "depth": 16384
+    },
+    {
+      "kv": "f16",
+      "depth": 32768
+    },
+    {
+      "kv": "f16",
+      "depth": 65536
+    },
+    {
+      "kv": "q8_0",
+      "depth": 0
+    },
+    {
+      "kv": "q8_0",
+      "depth": 4096
+    },
+    {
+      "kv": "q8_0",
+      "depth": 8192
+    },
+    {
+      "kv": "q8_0",
+      "depth": 16384
+    },
+    {
+      "kv": "q8_0",
+      "depth": 32768
+    },
+    {
+      "kv": "q8_0",
+      "depth": 65536
+    },
+    {
+      "kv": "q8_0",
+      "depth": 131072
+    },
+    {
+      "kv": "q4_0",
+      "depth": 0
+    },
+    {
+      "kv": "q4_0",
+      "depth": 4096
+    },
+    {
+      "kv": "q4_0",
+      "depth": 8192
+    },
+    {
+      "kv": "q4_0",
+      "depth": 16384
+    },
+    {
+      "kv": "q4_0",
+      "depth": 32768
+    },
+    {
+      "kv": "q4_0",
+      "depth": 65536
+    },
+    {
+      "kv": "q4_0",
+      "depth": 131072
+    }
+  ],
+  "status_counts": {
+    "success": 20,
+    "oom": 1
+  },
+  "pareto_by_depth": {
+    "0": [
+      {
+        "kv_type": "f16",
+        "pp_tps": 270.135031,
+        "tg_tps": 13.304503,
+        "vram_peak_mb": 14875,
+        "ram_peak_mb": 15001,
+        "status": "success"
+      },
+      {
+        "kv_type": "q8_0",
+        "pp_tps": 268.778993,
+        "tg_tps": 13.182567,
+        "vram_peak_mb": 14861,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q4_0",
+        "pp_tps": 269.293657,
+        "tg_tps": 13.128729,
+        "vram_peak_mb": 14853,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      }
+    ],
+    "4096": [
+      {
+        "kv_type": "f16",
+        "pp_tps": 245.551719,
+        "tg_tps": 13.019877,
+        "vram_peak_mb": 15135,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q8_0",
+        "pp_tps": 245.160797,
+        "tg_tps": 12.799411,
+        "vram_peak_mb": 15001,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q4_0",
+        "pp_tps": 245.210059,
+        "tg_tps": 12.361727,
+        "vram_peak_mb": 14929,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      }
+    ],
+    "8192": [
+      {
+        "kv_type": "f16",
+        "pp_tps": 225.547134,
+        "tg_tps": 12.779965,
+        "vram_peak_mb": 15395,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q8_0",
+        "pp_tps": 224.955187,
+        "tg_tps": 12.569397,
+        "vram_peak_mb": 15141,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q4_0",
+        "pp_tps": 224.916921,
+        "tg_tps": 11.617756,
+        "vram_peak_mb": 15005,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      }
+    ],
+    "16384": [
+      {
+        "kv_type": "f16",
+        "pp_tps": 194.092486,
+        "tg_tps": 12.349426,
+        "vram_peak_mb": 15899,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q8_0",
+        "pp_tps": 192.869375,
+        "tg_tps": 12.108865,
+        "vram_peak_mb": 15405,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q4_0",
+        "pp_tps": 193.23636,
+        "tg_tps": 10.509532,
+        "vram_peak_mb": 15141,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      }
+    ],
+    "32768": [
+      {
+        "kv_type": "f16",
+        "pp_tps": 151.298046,
+        "tg_tps": 11.51654,
+        "vram_peak_mb": 16923,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q8_0",
+        "pp_tps": 150.367362,
+        "tg_tps": 11.264843,
+        "vram_peak_mb": 15971,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q4_0",
+        "pp_tps": 150.580451,
+        "tg_tps": 8.753164,
+        "vram_peak_mb": 15451,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      }
+    ],
+    "65536": [
+      {
+        "kv_type": "f16",
+        "pp_tps": 104.992382,
+        "tg_tps": 10.08756,
+        "vram_peak_mb": 19045,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q8_0",
+        "pp_tps": 104.13993,
+        "tg_tps": 9.894224,
+        "vram_peak_mb": 17037,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q4_0",
+        "pp_tps": 104.434293,
+        "tg_tps": 6.568687,
+        "vram_peak_mb": 16005,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      }
+    ],
+    "131072": [
+      {
+        "kv_type": "q8_0",
+        "pp_tps": 64.518258,
+        "tg_tps": 7.908764,
+        "vram_peak_mb": 19431,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      },
+      {
+        "kv_type": "q4_0",
+        "pp_tps": 64.730881,
+        "tg_tps": 4.368645,
+        "vram_peak_mb": 17375,
+        "ram_peak_mb": 15002,
+        "status": "success"
+      }
+    ]
+  },
+  "complete": true
+}

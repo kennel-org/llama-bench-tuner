@@ -1,0 +1,40 @@
+{
+  "depth": 65536,
+  "maximize": [
+    "pp_tps",
+    "tg_tps"
+  ],
+  "minimize": [
+    "ttft_ms",
+    "vram_peak_mb"
+  ],
+  "n_rows": 2,
+  "front": [
+    {
+      "source": "validation(median)",
+      "depth": 65536,
+      "kv": "f16",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 512,
+      "flash_attn": 1,
+      "pp_tps": 105.109942,
+      "tg_tps": 10.112846,
+      "ttft_ms": 433168.0,
+      "vram_peak_mb": 19045
+    },
+    {
+      "source": "validation(median)",
+      "depth": 65536,
+      "kv": "q8_0",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "pp_tps": 100.344373,
+      "tg_tps": 9.865288,
+      "ttft_ms": 453941.0,
+      "vram_peak_mb": 16857
+    }
+  ]
+}
