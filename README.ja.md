@@ -203,6 +203,62 @@ python -m llama_bench_tuner.viz_optuna \
 
 ---
 
+### 4. コンテキスト容量パイプライン（`llama-tune-capacity`, `llama-tune-pipeline`）
+
+従来の `llama-tune` / `llama-tune-optuna` は 1 つのプロンプト長で `ngl x batch x flash-attn` を探索します。
+このパイプラインは **「その host / model / runtime で、どこまで長い context が実用速度を保てるか」** を先に求め、その境界の内側でチューニングします。
+
+```
+capacity -> grid -> optuna -> validate -> profile（FAST / BALANCED / LONG-CONTEXT）+ Pareto 表
+```
+
+| stage | 内容 | 出力 |
+|---|---|---|
+| `capacity` | (KV 型, depth) ごとに 1 プロセスで `llama-bench` を実行。`success / oom / runtime_abort / timeout / unsupported / slowdown / skipped_after_fail / gpu_busy` に分類。**capacity 境界**（完走する最大）と **practical 候補境界**（d0 比の tg/pp、最低 tg、VRAM 余裕、wall time）を分離 | `capacity.json`, `capacity.csv` |
+| `grid` | capacity で動くと分かった範囲だけを粗い Grid（batch, ubatch, flash-attn, ngl, n_cpu_moe など）で探索。軸ごとの効果・OOM/VRAM cliff・絞り込んだ `next_space` を出力 | `grid.json`, `grid.csv` |
+| `optuna` | 対象 depth ごとに 1 study。既定は多目的 NSGA-II（tg↑ pp↑ TTFT↓ VRAM↓ wall↓）。`--mode score:fast\|balanced\|long` で用途別の単目的スコア（`trial.report` による本物の pruning） | `optuna/d<N>/optuna.json` ほか |
+| `validate` | 上位 K 候補を 8K/32K/64K/128K で `--validate-reps` 回、別プロセスで再測定。中央値 / IQR / CV。全反復が完走し安定した depth だけを `practical` と判定 | `validation.json`, `validation.csv` |
+| `profile` | practical と検証された候補から FAST / BALANCED / LONG を選定。正確な `llama-server` コマンド、期待 pp/tg/VRAM/RAM、commit、model 情報を保存。depth 別 Pareto 表と失敗サマリも出力 | `profiles/*.json`, `pareto/`, `failure_summary.json` |
+
+```bash
+uv run llama-tune-pipeline all \
+  --llama-bench /path/to/llama-bench --model /path/to/model.gguf --name my-run \
+  --gpu-index 0 --min-free-vram-gib 17 --wait-for-gpu --gpu-wait-timeout 3600 \
+  --depths 0,4k,8k,16k,32k,64k,128k --kv f16,q8_0,q4_0 \
+  --grid-depths 8k,32k --optuna-depths 32k,128k --trials 14 \
+  --validate-depths 8k,32k,64k,128k --validate-reps 3 --top-k 4
+# 単独実行: llama-tune-pipeline capacity|grid|optuna|validate|profile ...
+# 中断したら同じコマンドに --resume（完了済み stage はスキップ、途中の stage は checkpoint から再開）
+```
+
+出力は `<out-dir>/pipeline/<name>/{capacity,grid,optuna,validation,profiles,pareto}` 配下です。完全なサンプル（pr36 / RTX 4000 Ada / 27B IQ4_XS）は `reports/pipeline_pr36_swift15_2026-10-01/` にあります。
+
+設計上の注意:
+
+* **推測で埋めない**: sampler が無い host では VRAM/RAM/クロック/電力は `null`。`llama-bench --help` に無い option は実行せず `unsupported` として記録。TTFT は pp からの**推定**（`ttft_kind=estimated_from_pp`）。
+* **複数 GPU host は明示指定**: `--gpu-index`（または `--min-free-vram-gib`）。単 GPU と複数 GPU の結果を混ぜない。
+* **GPU が塞がっていても他 process には触れない**: `--min-free-vram-gib` / `--wait-for-gpu` / `--gpu-wait-timeout`。空かなければ exit code 3 で停止し、`--resume` で再開可能。
+* **HIP/ROCm の hardware exception は OOM ではなく `runtime_abort`**。
+* Optuna は多目的 study で `trial.report()` / `should_prune()` を使えないため、多目的モードでは cheap な depth 0 段階で `PrunePolicy` により prune（cheap 指標は最終指標と別保存）。
+* 既存 CLI と CSV 列は不変。pipeline の結果は別 schema（`PIPELINE_RESULT_FIELDS`）。
+
+### 5. サーバ経由の測定: 実 TTFT・投機デコード（MTP）・soak（`server`, `soak` ステージ）
+
+`llama-bench` には TTFT も投機デコードの option も無いため、任意の 2 ステージで **profile 自身のコマンドで実際の `llama-server` を起動**して測ります
+（`llama-server` は `llama-bench` と同じディレクトリに必要）。profile JSON に測定値を追記するだけで、profile の選び直しはしません。
+
+```bash
+uv run llama-tune-pipeline server --llama-bench ... --model ... --name my-run --gpu-index 0 \
+  --server-sizes 4k,16k,32k --server-reps 3 --spec-compare      # 実測 TTFT / pp / tg、+ MTP 比較
+uv run llama-tune-pipeline soak --llama-bench ... --model ... --name my-run --gpu-index 0 \
+  --soak-profile long --soak-minutes 20 --soak-window 30       # 長時間 decode + GPU 時系列 + 判定
+```
+
+* プロンプトは毎回ユニーク（tokenizer で長さ調整、`cache_prompt:false`）。prefix cache で TTFT が過小評価されない。`ttft_kind=measured`。
+* **MTP**: `llama-server --help` に `--spec-type` がある場合のみ試行。MTP ヘッドが無いモデルは `inactive` / `failed_to_start`。全サイズで +10 % 以上のときだけ profile に `llama_server_mtp` を追加。
+  測定プロンプトは「数を数える」予測しやすい文章なので、**採択率・高速化は合成負荷での上限寄りの値**（チャット/コーディングの保証ではない）。
+* **soak 判定**: 熱/電力ブレーキの throttle bit なし（`sw_power_cap` 単独は熱ではない）、SM クロック低下 10 % 以内、先頭と末尾の窓で decode 速度の低下 10 % 以内。GPU telemetry が無い場合は速度のみの判定で `telemetry_available: false`。
+
 ## Tips
 
 - `--ub-ratio` でバッチサイズから自動的にマイクロバッチ（`ub = batch / ratio`）を算出できます。

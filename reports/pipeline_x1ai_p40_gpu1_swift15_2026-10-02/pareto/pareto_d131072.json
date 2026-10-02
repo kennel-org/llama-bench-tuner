@@ -1,0 +1,27 @@
+{
+  "depth": 131072,
+  "maximize": [
+    "pp_tps",
+    "tg_tps"
+  ],
+  "minimize": [
+    "ttft_ms",
+    "vram_peak_mb"
+  ],
+  "n_rows": 1,
+  "front": [
+    {
+      "source": "validation(median)",
+      "depth": 131072,
+      "kv": "q8_0",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "pp_tps": 62.3474975,
+      "tg_tps": 7.9044185,
+      "ttft_ms": 1305912.0,
+      "vram_peak_mb": 19321
+    }
+  ]
+}

@@ -77,6 +77,45 @@ def extract_tps_from_rows(rows: Iterable[BenchCsvRow]) -> TokenSpeeds:
     return prefill_tps, decode_tps
 
 
+@dataclass(frozen=True)
+class DepthMetrics:
+    """Throughput for one (n_prompt, n_gen, n_depth) condition, never aggregated across depths."""
+
+    n_depth: int
+    pp_tps: Optional[float]
+    tg_tps: Optional[float]
+    n_prompt: int
+    n_gen: int
+
+
+def extract_metrics_by_depth(rows: Iterable[BenchCsvRow]) -> dict[int, DepthMetrics]:
+    """Return pp/tg per ``n_depth`` instead of the legacy max over all rows.
+
+    ``extract_tps_from_rows`` keeps the best value across every row, which hides
+    the slowdown at deeper contexts when several depths share one CSV. Rows with
+    different depths are kept apart here; within one depth the best repeat wins
+    only if the same (n_prompt, n_gen) condition appears more than once.
+    """
+
+    grouped: dict[int, dict[str, object]] = {}
+    for row in rows:
+        if row.tps is None:
+            continue
+        entry = grouped.setdefault(
+            row.n_depth, {"pp": None, "tg": None, "n_prompt": 0, "n_gen": 0}
+        )
+        if row.phase in ("prefill", "combined") and (entry["pp"] is None or row.tps > entry["pp"]):
+            entry["pp"] = row.tps
+            entry["n_prompt"] = row.n_prompt
+        if row.phase in ("decode", "combined") and (entry["tg"] is None or row.tps > entry["tg"]):
+            entry["tg"] = row.tps
+            entry["n_gen"] = row.n_gen
+    return {
+        depth: DepthMetrics(depth, e["pp"], e["tg"], int(e["n_prompt"]), int(e["n_gen"]))
+        for depth, e in grouped.items()
+    }
+
+
 def _phase(values: Mapping[str, str], *, n_prompt: int, n_gen: int) -> str:
     label = (values.get("type") or values.get("Type") or values.get("phase") or "").lower()
     if "pp" in label or "prompt" in label:

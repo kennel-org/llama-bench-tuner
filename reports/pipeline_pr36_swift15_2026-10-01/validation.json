@@ -1,0 +1,808 @@
+{
+  "stage": "validation",
+  "reps": 3,
+  "depths": [
+    8192,
+    32768,
+    65536
+  ],
+  "top_k": 4,
+  "prompt": 512,
+  "ngen": 64,
+  "criteria": {
+    "min_tg_tps": 10.0,
+    "tg_ratio": 0.5,
+    "pp_ratio": 0.3,
+    "max_wall_s": null,
+    "vram_margin_mib": 512,
+    "slowdown_tg_ratio": 0.25,
+    "slowdown_pp_ratio": 0.1
+  },
+  "cv_limit": 0.05,
+  "benchmark_fingerprint": "47da93250bfb3c9b51d9db107e1cc3e5692fc955767c1db77523fbcde8f12568",
+  "runtime_commits": [
+    "0b5be7e4a"
+  ],
+  "skipped": [],
+  "candidates": [
+    {
+      "config": {
+        "kv": "f16",
+        "depth": 0,
+        "ngl": 99,
+        "batch": 1024,
+        "ubatch": 256,
+        "flash_attn": 1,
+        "n_cpu_moe": null,
+        "split_mode": null,
+        "nkvo": null,
+        "prompt": 512,
+        "ngen": 64,
+        "reps": 1,
+        "threads": null
+      },
+      "config_key": "kv=f16,d=0,ngl=99,b=1024,ub=256,fa=1,p=0,n=0",
+      "source": "grid@32768",
+      "depths": {
+        "0": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 19.471472,
+            "min": 19.2546,
+            "max": 19.741952,
+            "iqr": 0.48735200000000134,
+            "cv": 0.0102
+          },
+          "pp": {
+            "n": 3,
+            "median": 925.224152,
+            "min": 902.980533,
+            "max": 947.399641,
+            "iqr": 44.41910799999994,
+            "cv": 0.0196
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 8.054,
+            "min": 8.025,
+            "max": 8.057,
+            "iqr": 0.03200000000000003,
+            "cv": 0.0018
+          },
+          "ttft_est_s": null,
+          "vram_peak_mb": 14990,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 76.0,
+          "sm_clock_min_mhz": 1905.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "8192": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 19.05782,
+            "min": 18.969782,
+            "max": 19.195427,
+            "iqr": 0.2256450000000001,
+            "cv": 0.0049
+          },
+          "pp": {
+            "n": 3,
+            "median": 893.231863,
+            "min": 889.566785,
+            "max": 894.701327,
+            "iqr": 5.13454200000001,
+            "cv": 0.0024
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 17.724,
+            "min": 17.568,
+            "max": 17.732,
+            "iqr": 0.16399999999999793,
+            "cv": 0.0043
+          },
+          "ttft_est_s": 9.013,
+          "vram_peak_mb": 15506,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 77.0,
+          "sm_clock_min_mhz": 1875.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "32768": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 17.319964,
+            "min": 17.272766,
+            "max": 17.597513,
+            "iqr": 0.32474699999999856,
+            "cv": 0.0082
+          },
+          "pp": {
+            "n": 3,
+            "median": 723.429088,
+            "min": 644.228582,
+            "max": 728.158099,
+            "iqr": 83.92951700000003,
+            "cv": 0.0551
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 51.251,
+            "min": 51.042,
+            "max": 51.252,
+            "iqr": 0.21000000000000085,
+            "cv": 0.0019
+          },
+          "ttft_est_s": 40.356,
+          "vram_peak_mb": 17046,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 79.0,
+          "sm_clock_min_mhz": 1800.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "65536": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 15.946437,
+            "min": 15.770568,
+            "max": 15.955429,
+            "iqr": 0.18486099999999972,
+            "cv": 0.0054
+          },
+          "pp": {
+            "n": 3,
+            "median": 468.500834,
+            "min": 468.069464,
+            "max": 522.309788,
+            "iqr": 54.240324000000044,
+            "cv": 0.0524
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 108.766,
+            "min": 108.45,
+            "max": 108.829,
+            "iqr": 0.3789999999999907,
+            "cv": 0.0015
+          },
+          "ttft_est_s": 105.359,
+          "vram_peak_mb": 19130,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 79.0,
+          "sm_clock_min_mhz": 405.0,
+          "throttle_reasons": [
+            "0x5"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        }
+      },
+      "soak": null
+    },
+    {
+      "config": {
+        "kv": "f16",
+        "depth": 0,
+        "ngl": 99,
+        "batch": 2048,
+        "ubatch": 256,
+        "flash_attn": 1,
+        "n_cpu_moe": null,
+        "split_mode": null,
+        "nkvo": null,
+        "prompt": 512,
+        "ngen": 64,
+        "reps": 1,
+        "threads": null
+      },
+      "config_key": "kv=f16,d=0,ngl=99,b=2048,ub=256,fa=1,p=0,n=0",
+      "source": "grid@8192",
+      "depths": {
+        "0": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 19.627632,
+            "min": 19.425742,
+            "max": 19.920412,
+            "iqr": 0.4946699999999993,
+            "cv": 0.0103
+          },
+          "pp": {
+            "n": 3,
+            "median": 953.996996,
+            "min": 953.647881,
+            "max": 957.114288,
+            "iqr": 3.466407000000004,
+            "cv": 0.0016
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 8.157,
+            "min": 8.066,
+            "max": 8.438,
+            "iqr": 0.3719999999999999,
+            "cv": 0.0193
+          },
+          "ttft_est_s": null,
+          "vram_peak_mb": 14998,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 75.0,
+          "sm_clock_min_mhz": 1905.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "8192": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 19.174597,
+            "min": 19.073898,
+            "max": 19.284821,
+            "iqr": 0.21092300000000108,
+            "cv": 0.0045
+          },
+          "pp": {
+            "n": 3,
+            "median": 895.239489,
+            "min": 891.191995,
+            "max": 913.4336,
+            "iqr": 22.241604999999936,
+            "cv": 0.0107
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 17.643,
+            "min": 17.617,
+            "max": 17.681,
+            "iqr": 0.06400000000000006,
+            "cv": 0.0015
+          },
+          "ttft_est_s": 8.869,
+          "vram_peak_mb": 15514,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 77.0,
+          "sm_clock_min_mhz": 1875.0,
+          "throttle_reasons": [
+            "0x4",
+            "0x5"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "32768": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 17.090702,
+            "min": 17.052868,
+            "max": 17.524374,
+            "iqr": 0.47150600000000153,
+            "cv": 0.0124
+          },
+          "pp": {
+            "n": 3,
+            "median": 722.243824,
+            "min": 699.109588,
+            "max": 724.445997,
+            "iqr": 25.336409000000003,
+            "cv": 0.016
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 51.289,
+            "min": 51.287,
+            "max": 52.431,
+            "iqr": 1.1439999999999984,
+            "cv": 0.0104
+          },
+          "ttft_est_s": 39.859,
+          "vram_peak_mb": 17046,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 79.0,
+          "sm_clock_min_mhz": 1800.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "65536": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 15.888288,
+            "min": 15.868844,
+            "max": 15.925515,
+            "iqr": 0.05667100000000147,
+            "cv": 0.0015
+          },
+          "pp": {
+            "n": 3,
+            "median": 467.27519,
+            "min": 460.866857,
+            "max": 536.930967,
+            "iqr": 76.06411000000003,
+            "cv": 0.0705
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 107.14,
+            "min": 106.781,
+            "max": 107.899,
+            "iqr": 1.117999999999995,
+            "cv": 0.0043
+          },
+          "ttft_est_s": 104.474,
+          "vram_peak_mb": 19130,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 79.0,
+          "sm_clock_min_mhz": 495.0,
+          "throttle_reasons": [
+            "0x5"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        }
+      },
+      "soak": null
+    },
+    {
+      "config": {
+        "kv": "q8_0",
+        "depth": 0,
+        "ngl": 99,
+        "batch": 4096,
+        "ubatch": 256,
+        "flash_attn": 1,
+        "n_cpu_moe": null,
+        "split_mode": null,
+        "nkvo": null,
+        "prompt": 512,
+        "ngen": 64,
+        "reps": 1,
+        "threads": null
+      },
+      "config_key": "kv=q8_0,d=0,ngl=99,b=4096,ub=256,fa=1,p=0,n=0",
+      "source": "optuna@32768",
+      "depths": {
+        "0": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 19.360068,
+            "min": 19.271023,
+            "max": 19.801835,
+            "iqr": 0.530812000000001,
+            "cv": 0.0119
+          },
+          "pp": {
+            "n": 3,
+            "median": 948.673142,
+            "min": 924.909678,
+            "max": 956.9584,
+            "iqr": 32.048722,
+            "cv": 0.0144
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 8.254,
+            "min": 8.095,
+            "max": 8.52,
+            "iqr": 0.42499999999999893,
+            "cv": 0.0212
+          },
+          "ttft_est_s": null,
+          "vram_peak_mb": 14984,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 75.0,
+          "sm_clock_min_mhz": 1905.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "8192": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 18.63123,
+            "min": 18.252748,
+            "max": 18.992711,
+            "iqr": 0.7399629999999995,
+            "cv": 0.0162
+          },
+          "pp": {
+            "n": 3,
+            "median": 839.844253,
+            "min": 832.364611,
+            "max": 881.91091,
+            "iqr": 49.546298999999976,
+            "cv": 0.0256
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 17.746,
+            "min": 17.679,
+            "max": 17.846,
+            "iqr": 0.1670000000000016,
+            "cv": 0.0039
+          },
+          "ttft_est_s": 9.195,
+          "vram_peak_mb": 15260,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 77.0,
+          "sm_clock_min_mhz": 1875.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "32768": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 16.640699,
+            "min": 16.575549,
+            "max": 16.879699,
+            "iqr": 0.3041499999999999,
+            "cv": 0.0078
+          },
+          "pp": {
+            "n": 3,
+            "median": 666.683702,
+            "min": 652.879303,
+            "max": 686.418348,
+            "iqr": 33.53904499999999,
+            "cv": 0.0206
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 52.285,
+            "min": 51.542,
+            "max": 52.477,
+            "iqr": 0.9349999999999952,
+            "cv": 0.0077
+          },
+          "ttft_est_s": 41.846,
+          "vram_peak_mb": 16108,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 79.0,
+          "sm_clock_min_mhz": 1800.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "65536": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 14.593893,
+            "min": 14.421556,
+            "max": 14.994782,
+            "iqr": 0.573226,
+            "cv": 0.0164
+          },
+          "pp": {
+            "n": 3,
+            "median": 497.903467,
+            "min": 480.810614,
+            "max": 535.205196,
+            "iqr": 54.394582000000014,
+            "cv": 0.045
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 112.063,
+            "min": 111.391,
+            "max": 112.722,
+            "iqr": 1.3309999999999889,
+            "cv": 0.0048
+          },
+          "ttft_est_s": 100.353,
+          "vram_peak_mb": 17238,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 79.0,
+          "sm_clock_min_mhz": 1725.0,
+          "throttle_reasons": [
+            "0x4",
+            "0x5"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        }
+      },
+      "soak": null
+    },
+    {
+      "config": {
+        "kv": "f16",
+        "depth": 0,
+        "ngl": 99,
+        "batch": 4096,
+        "ubatch": 256,
+        "flash_attn": 1,
+        "n_cpu_moe": null,
+        "split_mode": null,
+        "nkvo": null,
+        "prompt": 512,
+        "ngen": 64,
+        "reps": 1,
+        "threads": null
+      },
+      "config_key": "kv=f16,d=0,ngl=99,b=4096,ub=256,fa=1,p=0,n=0",
+      "source": "optuna@65536",
+      "depths": {
+        "0": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 19.34613,
+            "min": 19.113494,
+            "max": 19.441428,
+            "iqr": 0.32793399999999906,
+            "cv": 0.0071
+          },
+          "pp": {
+            "n": 3,
+            "median": 896.586856,
+            "min": 875.083188,
+            "max": 924.189831,
+            "iqr": 49.106643000000076,
+            "cv": 0.0224
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 8.186,
+            "min": 8.136,
+            "max": 8.192,
+            "iqr": 0.05600000000000094,
+            "cv": 0.0031
+          },
+          "ttft_est_s": null,
+          "vram_peak_mb": 14998,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 76.0,
+          "sm_clock_min_mhz": 1905.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "8192": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 19.043482,
+            "min": 19.02931,
+            "max": 19.061974,
+            "iqr": 0.03266400000000047,
+            "cv": 0.0007
+          },
+          "pp": {
+            "n": 3,
+            "median": 807.212354,
+            "min": 756.437705,
+            "max": 892.17242,
+            "iqr": 135.73471499999994,
+            "cv": 0.0684
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 17.955,
+            "min": 17.875,
+            "max": 18.11,
+            "iqr": 0.23499999999999943,
+            "cv": 0.0054
+          },
+          "ttft_est_s": 9.643,
+          "vram_peak_mb": 15514,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 76.0,
+          "sm_clock_min_mhz": 1890.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "32768": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 17.389209,
+            "min": 17.245364,
+            "max": 17.629651,
+            "iqr": 0.3842870000000005,
+            "cv": 0.0091
+          },
+          "pp": {
+            "n": 3,
+            "median": 682.253085,
+            "min": 671.358767,
+            "max": 725.175333,
+            "iqr": 53.81656600000008,
+            "cv": 0.0335
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 52.437,
+            "min": 51.998,
+            "max": 52.487,
+            "iqr": 0.4890000000000043,
+            "cv": 0.0042
+          },
+          "ttft_est_s": 42.288,
+          "vram_peak_mb": 17046,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 79.0,
+          "sm_clock_min_mhz": 1800.0,
+          "throttle_reasons": [
+            "0x4"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        },
+        "65536": {
+          "n_runs": 3,
+          "n_ok": 3,
+          "statuses": [
+            "success"
+          ],
+          "stable": true,
+          "cv_limit": 0.05,
+          "tg": {
+            "n": 3,
+            "median": 15.874284,
+            "min": 15.697618,
+            "max": 15.932956,
+            "iqr": 0.2353380000000005,
+            "cv": 0.0063
+          },
+          "pp": {
+            "n": 3,
+            "median": 490.350615,
+            "min": 473.107028,
+            "max": 532.050974,
+            "iqr": 58.94394599999998,
+            "cv": 0.0496
+          },
+          "wall_s": {
+            "n": 3,
+            "median": 109.945,
+            "min": 108.957,
+            "max": 112.165,
+            "iqr": 3.2080000000000126,
+            "cv": 0.0122
+          },
+          "ttft_est_s": 103.373,
+          "vram_peak_mb": 19130,
+          "ram_peak_mb": 15090,
+          "temp_max_c": 79.0,
+          "sm_clock_min_mhz": 420.0,
+          "throttle_reasons": [
+            "0x5"
+          ],
+          "practical": true,
+          "practical_reason": ""
+        }
+      },
+      "soak": null
+    }
+  ],
+  "elapsed_seconds": 2251.060606
+}

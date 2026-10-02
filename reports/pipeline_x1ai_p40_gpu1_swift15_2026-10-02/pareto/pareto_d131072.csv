@@ -1,0 +1,2 @@
+source,depth,kv,ngl,batch,ubatch,flash_attn,pp_tps,tg_tps,ttft_ms,vram_peak_mb
+validation(median),131072,q8_0,99,1024,256,1,62.3474975,7.9044185,1305912.0,19321

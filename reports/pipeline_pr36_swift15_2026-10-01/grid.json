@@ -1,0 +1,994 @@
+{
+  "stage": "grid",
+  "benchmark_fingerprint": "71452c51f09ea8e29ec6b54b8bca03b1bbb66b89aa1641560e9571925a9c0605",
+  "capacity": "outfile/pipeline/pr36-swift15-clean/capacity/capacity.json",
+  "targets": [
+    {
+      "kv": "f16",
+      "depth": 8192
+    },
+    {
+      "kv": "f16",
+      "depth": 32768
+    },
+    {
+      "kv": "q4_0",
+      "depth": 8192
+    },
+    {
+      "kv": "q4_0",
+      "depth": 32768
+    },
+    {
+      "kv": "q8_0",
+      "depth": 8192
+    },
+    {
+      "kv": "q8_0",
+      "depth": 32768
+    }
+  ],
+  "space": {
+    "batch": [
+      1024,
+      2048,
+      4096
+    ],
+    "ubatch": [
+      256,
+      512,
+      1024
+    ],
+    "flash_attn": [
+      0,
+      1
+    ]
+  },
+  "n_cases": 72,
+  "elapsed_seconds": 2441.679478,
+  "axis_effects": {
+    "batch": {
+      "1024": {
+        "completed": 23,
+        "failed": 1,
+        "tg_best": 19.426597,
+        "tg_median": 18.480358,
+        "pp_best": 893.691701
+      },
+      "2048": {
+        "completed": 23,
+        "failed": 1,
+        "tg_best": 19.42575,
+        "tg_median": 18.448412,
+        "pp_best": 910.491485
+      },
+      "4096": {
+        "completed": 23,
+        "failed": 1,
+        "tg_best": 19.195764,
+        "tg_median": 18.362041,
+        "pp_best": 911.244301
+      }
+    },
+    "ubatch": {
+      "1024": {
+        "completed": 21,
+        "failed": 3,
+        "tg_best": 19.426597,
+        "tg_median": 18.489304,
+        "pp_best": 911.244301
+      },
+      "256": {
+        "completed": 24,
+        "failed": 0,
+        "tg_best": 19.42575,
+        "tg_median": 18.0488635,
+        "pp_best": 891.729864
+      },
+      "512": {
+        "completed": 24,
+        "failed": 0,
+        "tg_best": 19.265933,
+        "tg_median": 18.113173500000002,
+        "pp_best": 905.942449
+      }
+    },
+    "flash_attn": {
+      "0": {
+        "completed": 15,
+        "failed": 3,
+        "tg_best": 18.834997,
+        "tg_median": 18.489304,
+        "pp_best": 782.059106
+      },
+      "1": {
+        "completed": 54,
+        "failed": 0,
+        "tg_best": 19.426597,
+        "tg_median": 18.069988000000002,
+        "pp_best": 911.244301
+      }
+    },
+    "kv": {
+      "f16": {
+        "completed": 33,
+        "failed": 3,
+        "tg_best": 19.426597,
+        "tg_median": 18.489304,
+        "pp_best": 911.244301
+      },
+      "q4_0": {
+        "completed": 18,
+        "failed": 0,
+        "tg_best": 19.265933,
+        "tg_median": 17.733705,
+        "pp_best": 898.336518
+      },
+      "q8_0": {
+        "completed": 18,
+        "failed": 0,
+        "tg_best": 19.338705,
+        "tg_median": 17.948781,
+        "pp_best": 893.691701
+      }
+    }
+  },
+  "failure_boundaries": [
+    {
+      "axis": "ubatch",
+      "kv": "f16",
+      "depth": 32768,
+      "fixed": {
+        "ngl": 99,
+        "batch": 1024,
+        "flash_attn": 0,
+        "n_cpu_moe": null
+      },
+      "last_ok": 512,
+      "first_fail": 1024,
+      "failure_status": "oom"
+    },
+    {
+      "axis": "ubatch",
+      "kv": "f16",
+      "depth": 32768,
+      "fixed": {
+        "ngl": 99,
+        "batch": 2048,
+        "flash_attn": 0,
+        "n_cpu_moe": null
+      },
+      "last_ok": 512,
+      "first_fail": 1024,
+      "failure_status": "oom"
+    },
+    {
+      "axis": "ubatch",
+      "kv": "f16",
+      "depth": 32768,
+      "fixed": {
+        "ngl": 99,
+        "batch": 4096,
+        "flash_attn": 0,
+        "n_cpu_moe": null
+      },
+      "last_ok": 512,
+      "first_fail": 1024,
+      "failure_status": "oom"
+    }
+  ],
+  "promising": [
+    {
+      "case_key": "kv=q8_0,d=8192,ngl=99,b=1024,ub=256,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "q8_0",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 853.462078,
+      "tg_tps": 19.192387,
+      "vram_peak_mb": 15281,
+      "point": {
+        "batch": 1024,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "q8_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=q4_0,d=8192,ngl=99,b=1024,ub=512,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "q4_0",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 512,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 857.776326,
+      "tg_tps": 19.265933,
+      "vram_peak_mb": 15407,
+      "point": {
+        "batch": 1024,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "q4_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 512
+      }
+    },
+    {
+      "case_key": "kv=f16,d=8192,ngl=99,b=1024,ub=1024,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 1024,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 814.852722,
+      "tg_tps": 19.426597,
+      "vram_peak_mb": 16279,
+      "point": {
+        "batch": 1024,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 1024
+      }
+    },
+    {
+      "case_key": "kv=f16,d=8192,ngl=99,b=2048,ub=256,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 864.502441,
+      "tg_tps": 19.42575,
+      "vram_peak_mb": 15497,
+      "point": {
+        "batch": 2048,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=q4_0,d=8192,ngl=99,b=2048,ub=256,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "q4_0",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 885.012103,
+      "tg_tps": 19.11667,
+      "vram_peak_mb": 15107,
+      "point": {
+        "batch": 2048,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "q4_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=q8_0,d=8192,ngl=99,b=2048,ub=256,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "q8_0",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 839.243142,
+      "tg_tps": 19.133664,
+      "vram_peak_mb": 15243,
+      "point": {
+        "batch": 2048,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "q8_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=q4_0,d=8192,ngl=99,b=2048,ub=512,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "q4_0",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 512,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 892.832474,
+      "tg_tps": 19.256377,
+      "vram_peak_mb": 15369,
+      "point": {
+        "batch": 2048,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "q4_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 512
+      }
+    },
+    {
+      "case_key": "kv=f16,d=8192,ngl=99,b=2048,ub=1024,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 1024,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 910.491485,
+      "tg_tps": 19.39929,
+      "vram_peak_mb": 16251,
+      "point": {
+        "batch": 2048,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 1024
+      }
+    },
+    {
+      "case_key": "kv=q4_0,d=8192,ngl=99,b=4096,ub=256,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "q4_0",
+      "ngl": 99,
+      "batch": 4096,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 885.928628,
+      "tg_tps": 18.936377,
+      "vram_peak_mb": 15097,
+      "point": {
+        "batch": 4096,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "q4_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=f16,d=8192,ngl=99,b=4096,ub=512,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 4096,
+      "ubatch": 512,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 905.942449,
+      "tg_tps": 19.195764,
+      "vram_peak_mb": 15749,
+      "point": {
+        "batch": 4096,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 512
+      }
+    },
+    {
+      "case_key": "kv=q4_0,d=8192,ngl=99,b=4096,ub=512,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "q4_0",
+      "ngl": 99,
+      "batch": 4096,
+      "ubatch": 512,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 898.336518,
+      "tg_tps": 18.924124,
+      "vram_peak_mb": 15359,
+      "point": {
+        "batch": 4096,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "q4_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 512
+      }
+    },
+    {
+      "case_key": "kv=f16,d=8192,ngl=99,b=4096,ub=1024,fa=1,p=512,n=64",
+      "context_depth": 8192,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 4096,
+      "ubatch": 1024,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 911.244301,
+      "tg_tps": 19.039301,
+      "vram_peak_mb": 16248,
+      "point": {
+        "batch": 4096,
+        "depth": 8192,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 1024
+      }
+    },
+    {
+      "case_key": "kv=f16,d=32768,ngl=99,b=1024,ub=256,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 722.031409,
+      "tg_tps": 17.617369,
+      "vram_peak_mb": 17067,
+      "point": {
+        "batch": 1024,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=q8_0,d=32768,ngl=99,b=1024,ub=256,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "q8_0",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 687.808764,
+      "tg_tps": 17.383315,
+      "vram_peak_mb": 16103,
+      "point": {
+        "batch": 1024,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "q8_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=f16,d=32768,ngl=99,b=1024,ub=512,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 512,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 704.252226,
+      "tg_tps": 17.777935,
+      "vram_peak_mb": 17325,
+      "point": {
+        "batch": 1024,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 512
+      }
+    },
+    {
+      "case_key": "kv=q4_0,d=32768,ngl=99,b=1024,ub=1024,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "q4_0",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 1024,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 713.575301,
+      "tg_tps": 16.828175,
+      "vram_peak_mb": 16347,
+      "point": {
+        "batch": 1024,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "q4_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 1024
+      }
+    },
+    {
+      "case_key": "kv=q8_0,d=32768,ngl=99,b=1024,ub=1024,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "q8_0",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 1024,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 688.741097,
+      "tg_tps": 17.284392,
+      "vram_peak_mb": 16867,
+      "point": {
+        "batch": 1024,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "q8_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 1024
+      }
+    },
+    {
+      "case_key": "kv=q4_0,d=32768,ngl=99,b=2048,ub=256,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "q4_0",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 629.957159,
+      "tg_tps": 17.071065,
+      "vram_peak_mb": 15545,
+      "point": {
+        "batch": 2048,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "q4_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=q8_0,d=32768,ngl=99,b=2048,ub=256,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "q8_0",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 684.016037,
+      "tg_tps": 17.382249,
+      "vram_peak_mb": 16065,
+      "point": {
+        "batch": 2048,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "q8_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=f16,d=32768,ngl=99,b=2048,ub=512,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 512,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 685.624975,
+      "tg_tps": 17.626776,
+      "vram_peak_mb": 17287,
+      "point": {
+        "batch": 2048,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 512
+      }
+    },
+    {
+      "case_key": "kv=q8_0,d=32768,ngl=99,b=2048,ub=512,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "q8_0",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 512,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 662.23525,
+      "tg_tps": 17.396794,
+      "vram_peak_mb": 16335,
+      "point": {
+        "batch": 2048,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "q8_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 512
+      }
+    },
+    {
+      "case_key": "kv=q4_0,d=32768,ngl=99,b=2048,ub=1024,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "q4_0",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 1024,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 712.250787,
+      "tg_tps": 17.105369,
+      "vram_peak_mb": 16337,
+      "point": {
+        "batch": 2048,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "q4_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 1024
+      }
+    },
+    {
+      "case_key": "kv=f16,d=32768,ngl=99,b=4096,ub=256,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 4096,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 724.901476,
+      "tg_tps": 17.587497,
+      "vram_peak_mb": 17019,
+      "point": {
+        "batch": 4096,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=q4_0,d=32768,ngl=99,b=4096,ub=256,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "q4_0",
+      "ngl": 99,
+      "batch": 4096,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 708.347491,
+      "tg_tps": 17.002619,
+      "vram_peak_mb": 15535,
+      "point": {
+        "batch": 4096,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "q4_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    },
+    {
+      "case_key": "kv=q8_0,d=32768,ngl=99,b=4096,ub=512,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "q8_0",
+      "ngl": 99,
+      "batch": 4096,
+      "ubatch": 512,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 659.982891,
+      "tg_tps": 17.44915,
+      "vram_peak_mb": 16325,
+      "point": {
+        "batch": 4096,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "q8_0",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 512
+      }
+    },
+    {
+      "case_key": "kv=f16,d=32768,ngl=99,b=4096,ub=1024,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 4096,
+      "ubatch": 1024,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 719.789071,
+      "tg_tps": 17.722023,
+      "vram_peak_mb": 17767,
+      "point": {
+        "batch": 4096,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 1024
+      }
+    },
+    {
+      "case_key": "kv=f16,d=32768,ngl=99,b=1024,ub=1024,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 1024,
+      "ubatch": 1024,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 689.703094,
+      "tg_tps": 17.699141,
+      "vram_peak_mb": 17797,
+      "point": {
+        "batch": 1024,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 1024
+      }
+    },
+    {
+      "case_key": "kv=f16,d=32768,ngl=99,b=2048,ub=256,fa=1,p=512,n=64",
+      "context_depth": 32768,
+      "kv_type": "f16",
+      "ngl": 99,
+      "batch": 2048,
+      "ubatch": 256,
+      "flash_attn": 1,
+      "n_cpu_moe": null,
+      "pp_tps": 722.393497,
+      "tg_tps": 17.490626,
+      "vram_peak_mb": 17029,
+      "point": {
+        "batch": 2048,
+        "depth": 32768,
+        "flash_attn": 1,
+        "kv": "f16",
+        "n_cpu_moe": null,
+        "ngen": 64,
+        "ngl": 99,
+        "nkvo": null,
+        "prompt": 512,
+        "reps": 1,
+        "split_mode": null,
+        "threads": null,
+        "ubatch": 256
+      }
+    }
+  ],
+  "space_sources": {
+    "batch": "user",
+    "ubatch": "user",
+    "flash_attn": "user"
+  },
+  "next_space": {
+    "ngl": [
+      99
+    ],
+    "batch": [
+      1024,
+      2048,
+      4096
+    ],
+    "ubatch": [
+      1024,
+      256,
+      512
+    ],
+    "flash_attn": [
+      1
+    ],
+    "kv": [
+      "f16",
+      "q4_0",
+      "q8_0"
+    ]
+  }
+}

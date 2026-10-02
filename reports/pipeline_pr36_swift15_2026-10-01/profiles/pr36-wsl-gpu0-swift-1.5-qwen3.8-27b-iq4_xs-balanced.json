@@ -1,0 +1,77 @@
+{
+  "profile": "balanced",
+  "available": true,
+  "pipeline_schema_version": 1,
+  "generated": "2026-10-01T16:21:41+00:00",
+  "host": "pr36-wsl",
+  "gpu": "RTX 4000 Ada 20GB",
+  "gpu_index": 0,
+  "gpu_connection": "internal PCIe (WSL2)",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+  "runtime": {
+    "llama_bench": "/home/masaya/src/llama.cpp/build/bin/llama-bench",
+    "driver_version": "596.71",
+    "llama_cpp_commit": "0b5be7e4a",
+    "help_sha256": "28159b91edece860cc6ea456cfedbe8381b684801eacf96cbb82cef2f104ae17"
+  },
+  "model": {
+    "path": "/home/masaya/models/bench20260930/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf",
+    "size_bytes": 15475951296,
+    "mtime_ns": 1790771372544998037,
+    "quant": "IQ4_XS",
+    "quant_source": "filename"
+  },
+  "context": 32768,
+  "server_context": 33344,
+  "context_note": "validated with `context` tokens already in the KV cache plus a 512-token prompt and 64 generated tokens, i.e. n_ctx = 33344; the llama-server command uses -c 33344",
+  "kv_type_k": "f16",
+  "kv_type_v": "f16",
+  "batch": 1024,
+  "ubatch": 256,
+  "flash_attn": 1,
+  "ngl": 99,
+  "n_cpu_moe": null,
+  "split_mode": null,
+  "mtp_speculation": null,
+  "expected": {
+    "pp_tps": 723.429088,
+    "tg_tps": 17.319964,
+    "tg_cv": 0.0082,
+    "ttft_est_s": 40.356,
+    "ttft_kind": "estimated_from_pp",
+    "vram_peak_mb": 17046,
+    "vram_total_mb": 20475,
+    "ram_peak_mb": 15090,
+    "validated_reps": 3,
+    "temp_max_c": 79.0,
+    "sm_clock_min_mhz": 1800.0,
+    "throttle_reasons": [
+      "0x4"
+    ]
+  },
+  "soak": null,
+  "commands": {
+    "llama_server": "/home/masaya/src/llama.cpp/build/bin/llama-server -m /home/masaya/models/bench20260930/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf -ngl 99 -c 33344 -ctk f16 -ctv f16 -b 1024 -ub 256 -np 1 -fa on --jinja",
+    "llama_server_binary_found": true,
+    "llama_bench_reproduce": "/home/masaya/src/llama.cpp/build/bin/llama-bench -m /home/masaya/models/bench20260930/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf -ngl 99 -b 1024 -ub 256 -p 512 -n 64 -o csv -v -fa 1 -d 32768 -ctk f16 -ctv f16 -r 3"
+  },
+  "notes": [
+    "llama-server flags are taken from the validated llama-bench configuration; the server binary's --help is probed only for the flash-attention syntax.",
+    "MTP / speculative decoding is not part of this profile (llama-bench has no such option)."
+  ],
+  "evidence": {
+    "validation": "outfile/pipeline/pr36-swift15-clean/validation/validation.json",
+    "capacity": "outfile/pipeline/pr36-swift15-clean/capacity/capacity.json",
+    "criteria": {
+      "min_tg_tps": 10.0,
+      "tg_ratio": 0.5,
+      "pp_ratio": 0.3,
+      "max_wall_s": null,
+      "vram_margin_mib": 512,
+      "slowdown_tg_ratio": 0.25,
+      "slowdown_pp_ratio": 0.1
+    },
+    "reps": 3,
+    "selection": "best balanced score among practical entries at depth 32768 (4 eligible); requested 32768"
+  }
+}

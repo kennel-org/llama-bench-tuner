@@ -109,3 +109,73 @@ def csv_fields(legacy_fields: list[str]) -> list[str]:
     """Return legacy fields followed by unique common-schema fields."""
 
     return legacy_fields + [field for field in COMMON_RESULT_FIELDS if field not in legacy_fields]
+
+
+# ---------------------------------------------------------------------------
+# Pipeline (capacity / grid / optuna / validation) result schema.
+#
+# Kept separate from COMMON_RESULT_FIELDS on purpose: the legacy ``llama-tune``
+# and ``llama-tune-optuna`` CSVs and checkpoint fingerprints must not change.
+# Every field is optional; values that cannot be measured stay ``None`` and are
+# never filled by guessing.
+# ---------------------------------------------------------------------------
+PIPELINE_SCHEMA_VERSION = 1
+
+PIPELINE_EXTRA_FIELDS = [
+    "pipeline_schema_version",
+    "stage",                  # capacity | grid | optuna | validation
+    "benchmark_kind",         # llama-bench | server
+    "case_key",
+    "point_json",             # the exact BenchPoint (all axes incl. split_mode/nkvo/threads) as JSON
+    "kv_type_k",
+    "kv_type_v",
+    "flash_attn",
+    "ngl",
+    "n_cpu_moe",
+    "gpu_index",
+    "runtime_commit",
+    "driver_version",
+    "vram_total_mb",
+    "vram_baseline_mb",       # used VRAM before the run (other processes included)
+    "vram_peak_mb",
+    "ram_peak_source",
+    "temp_max_c",
+    "sm_clock_min_mhz",
+    "power_max_w",
+    "throttle_reasons",
+    "telemetry_status",
+    "pp_ratio_vs_d0",
+    "tg_ratio_vs_d0",
+    "ttft_kind",              # estimated_from_pp | measured | null
+    "trial_number",           # optuna trial this row belongs to
+    "step",                   # cheap | final | rep<N> | soak
+    "capacity_ok",
+    "practical_candidate",
+    "practical_reason",
+    "attempts",
+    "draft_n",                # speculative decoding: tokens drafted
+    "draft_n_accepted",
+    "draft_acceptance",
+    "attempt_history",        # JSON list of per-attempt statuses when a runtime_abort was retried
+    "returncode",
+    "start",
+    "end",
+    "csv",
+    "stderr",
+]
+
+PIPELINE_RESULT_FIELDS = COMMON_RESULT_FIELDS + [
+    field for field in PIPELINE_EXTRA_FIELDS if field not in COMMON_RESULT_FIELDS
+]
+
+
+def pipeline_row(**values: Any) -> dict[str, Any]:
+    """Return a row with every pipeline field present (``None`` when unknown)."""
+
+    unknown = set(values) - set(PIPELINE_RESULT_FIELDS)
+    if unknown:
+        raise KeyError(f"Unknown pipeline result field(s): {sorted(unknown)}")
+    row = {field: None for field in PIPELINE_RESULT_FIELDS}
+    row["pipeline_schema_version"] = PIPELINE_SCHEMA_VERSION
+    row.update(values)
+    return row

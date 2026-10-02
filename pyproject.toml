@@ -18,6 +18,9 @@ llama-tune-viz = "llama_bench_tuner.viz:main"
 llama-tune-optuna = "llama_bench_tuner.optuna_tune:main"
 llama-tune-viz-opt = "llama_bench_tuner.viz_optuna:main"
 llama-tune-capabilities = "llama_bench_tuner.capabilities:main"
+llama-tune-capacity = "llama_bench_tuner.capacity:main"
+llama-tune-pipeline = "llama_bench_tuner.pipeline:main"
+llama-tune-profile = "llama_bench_tuner.pipeline:profile_main"
 
 [build-system]
 requires = ["uv_build>=0.9.2,<0.10.0"]

@@ -1,0 +1,129 @@
+{
+  "profile": "long",
+  "available": true,
+  "pipeline_schema_version": 1,
+  "generated": "2026-10-02T00:37:51+00:00",
+  "host": "x1ai",
+  "gpu": "Tesla P40 24GB",
+  "gpu_index": 1,
+  "gpu_connection": "USB4/Thunderbolt eGPU dock (PCIe 8GT/s x4)",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "runtime": {
+    "llama_bench": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-bench",
+    "driver_version": "580.159.03",
+    "llama_cpp_commit": "7fe450e19",
+    "help_sha256": "6f7c0291a6a381b8c5574e2378cbd0e9e8cf92774fa278658d0c1dc866020dc7"
+  },
+  "model": {
+    "path": "/home/masaya/models/ukisai_swift15/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf",
+    "size_bytes": 15475951296,
+    "mtime_ns": 1790768944674135786,
+    "quant": "IQ4_XS",
+    "quant_source": "filename"
+  },
+  "context": 131072,
+  "server_context": 131648,
+  "context_note": "validated with `context` tokens already in the KV cache plus a 512-token prompt and 64 generated tokens, i.e. n_ctx = 131648; the llama-server command uses -c 131648",
+  "kv_type_k": "q8_0",
+  "kv_type_v": "q8_0",
+  "batch": 1024,
+  "ubatch": 256,
+  "flash_attn": 1,
+  "ngl": 99,
+  "n_cpu_moe": null,
+  "split_mode": null,
+  "mtp_speculation": {
+    "requested": true,
+    "status": "active",
+    "spec_type": "draft-mtp",
+    "draft_n_max": 3,
+    "sizes": [
+      {
+        "target_tokens": 4096,
+        "tg_base": 12.745004130423286,
+        "tg_spec": 21.07952359462424,
+        "tg_speedup": 1.6539440379078285,
+        "pp_ratio": 0.9677065690292508,
+        "ttft_base_s": 17.933662628522143,
+        "ttft_spec_s": 18.541461281944066,
+        "draft_acceptance": 0.6102721539993362
+      },
+      {
+        "target_tokens": 16384,
+        "tg_base": 12.065513366079738,
+        "tg_spec": 18.16686544167162,
+        "tg_speedup": 1.5056852444210835,
+        "pp_ratio": 0.9695353205773476,
+        "ttft_base_s": 76.88163619500119,
+        "ttft_spec_s": 79.33932533994084,
+        "draft_acceptance": 0.587649190110827
+      }
+    ],
+    "vram_peak_mb": 20659,
+    "note": null
+  },
+  "expected": {
+    "pp_tps": 62.3474975,
+    "tg_tps": 7.9044185,
+    "tg_cv": 0.0004,
+    "ttft_est_s": 1305.912,
+    "ttft_kind": "estimated_from_pp",
+    "vram_peak_mb": 19321,
+    "vram_total_mb": 23040,
+    "ram_peak_mb": 15002,
+    "validated_reps": 2,
+    "temp_max_c": 62.0,
+    "sm_clock_min_mhz": 1531.0,
+    "throttle_reasons": []
+  },
+  "soak": null,
+  "commands": {
+    "llama_server": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-server -m /home/masaya/models/ukisai_swift15/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf -ngl 99 -c 131648 -ctk q8_0 -ctv q8_0 -b 1024 -ub 256 -np 1 -fa on --jinja",
+    "llama_server_binary_found": true,
+    "llama_bench_reproduce": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-bench -m /home/masaya/models/ukisai_swift15/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf -ngl 99 -b 1024 -ub 256 -p 512 -n 64 -o csv -v -fa 1 -d 131072 -ctk q8_0 -ctv q8_0 -r 3",
+    "llama_server_mtp": "/home/masaya/projects/local-llm-lab/vendor/llama.cpp-v0.5.0/build/bin/llama-server -m /home/masaya/models/ukisai_swift15/Swift-1.5-Qwen3.8-27B-IQ4_XS.gguf -ngl 99 -c 131648 -ctk q8_0 -ctv q8_0 -b 1024 -ub 256 -np 1 -fa on --jinja --spec-type draft-mtp --spec-draft-n-max 3"
+  },
+  "notes": [
+    "llama-server flags are taken from the validated llama-bench configuration; the server binary's --help is probed only for the flash-attention syntax.",
+    "MTP / speculative decoding is not part of this profile (llama-bench has no such option)."
+  ],
+  "evidence": {
+    "validation": "outfile/pipeline/x1ai-p40-gpu1-swift15/validation/validation.json",
+    "capacity": "outfile/pipeline/x1ai-p40-gpu1-swift15/capacity/capacity.json",
+    "criteria": {
+      "min_tg_tps": 6.0,
+      "tg_ratio": 0.5,
+      "pp_ratio": 0.2,
+      "max_wall_s": null,
+      "vram_margin_mib": 512,
+      "slowdown_tg_ratio": 0.25,
+      "slowdown_pp_ratio": 0.1
+    },
+    "reps": 3,
+    "selection": "best long score among practical entries at depth 131072 (1 eligible); requested deepest practical"
+  },
+  "measured_server": {
+    "ttft_kind": "measured",
+    "reps": 2,
+    "max_tokens": 128,
+    "runtime_build_info": "b11146-7fe450e19",
+    "sizes": [
+      {
+        "target_tokens": 4096,
+        "ttft_s": 17.933662628522143,
+        "pp_tps": 237.0533563168379,
+        "tg_tps": 12.745004130423286,
+        "total_s": 27.898556372558232
+      },
+      {
+        "target_tokens": 16384,
+        "ttft_s": 76.88163619500119,
+        "pp_tps": 214.80788175913466,
+        "tg_tps": 12.065513366079738,
+        "total_s": 87.40789284202037
+      }
+    ],
+    "vram_peak_mb": 19337,
+    "ram_peak_mb": 15008
+  }
+}
